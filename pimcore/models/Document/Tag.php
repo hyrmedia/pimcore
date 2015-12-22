@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document;
@@ -49,13 +46,6 @@ abstract class Tag extends Model\AbstractModel implements Model\Document\Tag\Tag
      * @var integer
      */
     protected $documentId;
-
-    /**
-     * Resource of the tag
-     *
-     * @var mixed
-     */
-    protected $resource;
 
     /**
      * @var \Pimcore\Controller\Action
@@ -96,7 +86,7 @@ abstract class Tag extends Model\AbstractModel implements Model\Document\Tag\Tag
         // this is the fallback for custom document tags using prefixes
         // so we need to check if the class exists first
         if(!\Pimcore\Tool::classExists($tagClass)) {
-            $oldStyleClass = "Document_Tag_" . ucfirst($type);
+            $oldStyleClass = "\\Document_Tag_" . ucfirst($type);
             if(\Pimcore\Tool::classExists($oldStyleClass)) {
                 $tagClass = $oldStyleClass;
             }
@@ -254,7 +244,20 @@ abstract class Tag extends Model\AbstractModel implements Model\Document\Tag\Tag
      * @return void
      */
     public function __sleep() {
-        $blockedVars = array("resource", "controller", "view", "editmode");
+
+        // we need to remove all closures out of the options
+        // e.g. "hotspotCallback" in Pdf editable
+        // otherwise this can cause problems when used in combination with hardlinks (upper-cast / serialization)
+        if(is_array($this->options)) {
+            foreach($this->options as &$value) {
+                if(is_object($value) && ($value instanceof Closure)) {
+                    $value = null;
+                }
+            }
+        }
+
+        // here the "normal" task of __sleep ;-)
+        $blockedVars = array("dao", "controller", "view", "editmode");
         $vars = get_object_vars($this);
         foreach ($vars as $key => $value) {
             if (!in_array($key, $blockedVars)) {
@@ -280,7 +283,7 @@ abstract class Tag extends Model\AbstractModel implements Model\Document\Tag\Tag
         } catch (\Exception $e) {
             if(\Pimcore::inDebugMode()){
                 // the __toString method isn't allowed to throw exceptions
-                $return = '<b style="color:#f00">__toString not possible - ' . $e->getMessage().'</b><br/>'.$e->getTraceAsString();
+                $return = '<b style="color:#f00">' . $e->getMessage().'</b><br/>'.$e->getTraceAsString();
             }
             \Logger::error("to string not possible - " . $e->getMessage());
         }
@@ -366,7 +369,7 @@ abstract class Tag extends Model\AbstractModel implements Model\Document\Tag\Tag
             $el[$key] = Webservice\Data\Mapper::map($value,$className,"out");
         }
 
-        unset($el["resource"]);
+        unset($el["dao"]);
         unset($el["documentId"]);
         unset($el["controller"]);
         unset($el["view"]);

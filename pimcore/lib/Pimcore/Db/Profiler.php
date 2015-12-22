@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Db;
@@ -41,6 +38,9 @@ class Profiler extends \Zend_Db_Profiler
      */
     protected $_totalElapsedTime = 0;
 
+    /**
+     * @var int
+     */
     protected $_totalQueries = 0;
 
     /**
@@ -101,8 +101,12 @@ class Profiler extends \Zend_Db_Profiler
         $this->_totalElapsedTime += $profile->getElapsedSecs();
         $this->_totalQueries++;
 
-        $logEntry = "Process: " . $this->getConnectionId() . " | DB Query (#" . $this->_totalQueries . "): " . (string)round($profile->getElapsedSecs(),5) . " | " . $profile->getQuery() . " | " . implode(",",$profile->getQueryParams());
-        \Logger::debug($logEntry);
+        $logEntry = $profile->getQuery() . " | " . implode(",",$profile->getQueryParams());
+        \Logger::debug($logEntry, [
+            "connection" => $this->getConnectionId(),
+            "queryNum" => $this->_totalQueries,
+            "time" => (string)round($profile->getElapsedSecs(),5)
+        ]);
 
         $this->queries[] = array(
             "time" => $profile->getElapsedSecs(),

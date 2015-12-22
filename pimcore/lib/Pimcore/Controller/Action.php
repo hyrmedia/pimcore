@@ -2,28 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller;
 
 class Action extends \Zend_Controller_Action {
-
-    /**
-     * Indicator if the custom view is already initialized or not
-     * this isn't necessary any more because this functionality has moved to Pimcore_Controller_Action_Helper_ViewRenderer
-     * @deprecated
-     * @var bool
-     */
-    protected static $_customViewInitialized = false;
 
     /**
      * @throws \Zend_Controller_Response_Exception
@@ -32,13 +21,6 @@ class Action extends \Zend_Controller_Action {
         parent::init();
 
         $this->view->setRequest($this->getRequest());
-
-        // init view | only once if there are called other actions
-        // this is just for compatibilty reasons see $this->initCustomView();
-        if (!self::$_customViewInitialized) {
-            $this->initCustomView();
-            self::$_customViewInitialized = true;
-        }
 
         // set content type
         if($this->getResponse()->canSendHeaders()) {
@@ -69,6 +51,14 @@ class Action extends \Zend_Controller_Action {
     }
 
     /**
+     * @return null|\Zend_Layout
+     */
+    protected function layout() {
+        return $this->enableLayout();
+    }
+
+    /**
+     * @return null|\Zend_Layout
      * @throws \Zend_Controller_Action_Exception
      */
     protected function enableLayout() {
@@ -81,6 +71,8 @@ class Action extends \Zend_Controller_Action {
         $layout = \Zend_Layout::getMvcInstance();
         $layout->enableLayout();
         $layout->setViewSuffix(\Pimcore\View::getViewScriptSuffix());
+
+        return $layout;
     }
 
     /**
@@ -91,8 +83,6 @@ class Action extends \Zend_Controller_Action {
         if ($layout) {
             $layout->disableLayout();
         }
-
-        $this->layoutEnabled = false;
     }
 
     /**
@@ -134,12 +124,5 @@ class Action extends \Zend_Controller_Action {
         if ($this->hasParam("_segment")) {
             $this->_helper->viewRenderer->setResponseSegment($this->getParam("_segment"));
         }
-    }
-
-    /**
-     * @deprecated
-     */
-    protected function initCustomView() {
-        // just for compatibility
     }
 }

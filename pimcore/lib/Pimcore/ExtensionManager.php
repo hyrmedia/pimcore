@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore;
@@ -62,9 +59,21 @@ class ExtensionManager {
      */
     public static function isEnabled ($type, $id) {
         $config = self::getConfig();
-        if($config->$type) {
-            return (bool) $config->$type->$id;
+
+        if($type == "brick") {
+            // bricks are enabled per default
+            if(!isset($config->brick->$id)) {
+                return true;
+            } else {
+                return (bool) $config->$type->$id;
+            }
+        } else {
+            // plugins (any maybe others) need to be explicitly enabled
+            if($config->$type) {
+                return (bool) $config->$type->$id;
+            }
         }
+
         return false;
     }
 
@@ -186,6 +195,21 @@ class ExtensionManager {
                 );
             }
 
+            // include area repositories from active plugins
+            $configs = ExtensionManager::getPluginConfigs();
+            foreach ($configs as $config) {
+                $className = $config["plugin"]["pluginClassName"];
+
+                if (!empty($className)) {
+                    $isEnabled = ExtensionManager::isEnabled("plugin", $config["plugin"]["pluginName"]);
+                    $areaDir = PIMCORE_PLUGINS_PATH . "/" . $config["plugin"]["pluginName"] . "/views/areas";
+
+                    if ($isEnabled && file_exists($areaDir)) {
+                        $areaRepositories[] = $areaDir;
+                    }
+                }
+            }
+
             // get directories
             foreach ($areaRepositories as $respository) {
 
@@ -242,9 +266,9 @@ class ExtensionManager {
      * @param $id
      * @throws \Exception
      */
-    public static function getBrickConfig ($id) {
+    public static function getBrickConfig ($id, $path = null) {
 
-        $brickConfigs = self::getBrickConfigs();
+        $brickConfigs = self::getBrickConfigs($path);
 
         foreach ($brickConfigs as $brickId => $config) {
             if($brickId == $id) {

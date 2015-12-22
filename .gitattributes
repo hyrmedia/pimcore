@@ -1,0 +1,12 @@
+
+* -text
+
+pimcore/static/js/lib/* linguist-vendored
+pimcore/static6/js/lib/* linguist-vendored
+website_demo/static/* linguist-vendored
+
+/.gitattributes export-ignore
+/.travis.yml export-ignore
+/tests export-ignore
+/build export-ignore
+/update export-ignore

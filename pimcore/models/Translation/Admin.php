@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Translation
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Translation;
@@ -23,17 +20,15 @@ use Pimcore\Tool;
 class Admin extends AbstractTranslation {
 
     /**
-     * Static Helper to get the translation of the current logged in user
-     *
-     * @static
-     * @param $id - translation key
-     * @param bool $create - creates an empty translation entry if the key doesn't exists
-     * @param bool $returnIdIfEmpty - returns $id if no translation is available
-     * @return string
+     * @param $id
+     * @param bool $create
+     * @param bool $returnIdIfEmpty
+     * @param null $language
+     * @return array
      * @throws \Exception
+     * @throws \Zend_Exception
      */
-    public static function getByKeyLocalized($id, $create = false, $returnIdIfEmpty = false)
-    {
+    public static function getByKeyLocalized($id, $create = false, $returnIdIfEmpty = false, $language = null) {
         if($user = Tool\Admin::getCurrentUser()) {
             $language = $user->getLanguage();
         } else if ($user = Tool\Authentication::authenticateSession()) {

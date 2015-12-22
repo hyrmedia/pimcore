@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Tool; 
@@ -172,8 +169,8 @@ class Admin_LoginController extends \Pimcore\Controller\Action\Admin {
                 Tool\Session::regenerateId();
             });
 
-            if($this->_getParam('deeplink')){
-                $this->redirect('/admin/login/deeplink/?' . $this->_getParam('deeplink'));
+            if($this->getParam('deeplink')){
+                $this->redirect('/admin/login/deeplink/?' . $this->getParam('deeplink'));
             } else {
                 $this->redirect("/admin/?_dc=" . time());
             }
@@ -186,6 +183,9 @@ class Admin_LoginController extends \Pimcore\Controller\Action\Admin {
     public function logoutAction() {
 
         $controller = $this;
+
+        // clear open edit locks for this session
+        \Pimcore\Model\Element\Editlock::clearSession(session_id());
 
         Tool\Session::useSession(function($adminSession) use ($controller) {
             if ($adminSession->user instanceof User) {

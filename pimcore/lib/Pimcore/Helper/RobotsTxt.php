@@ -7,7 +7,7 @@
 
 namespace Pimcore\Helper;
 
-use Pimcore\Model\Cache;
+use Pimcore\Cache;
 
 class RobotsTxt
 {
@@ -33,7 +33,7 @@ class RobotsTxt
 
             if (!$robotsTxt = Cache::load($cacheKey)) {
                 $robotsTxt = \Pimcore\Tool::getHttpData($robotsUrl);
-                Cache::save($robotsTxt, $cacheKey, array("contentanalysis", "system"), 3600, 999, true);
+                Cache::save($robotsTxt, $cacheKey, array("system"), 3600, 999, true);
             }
 
             $this->_rules = $this->_makeRules($robotsTxt);

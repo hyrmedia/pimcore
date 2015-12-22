@@ -2,28 +2,25 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Plugin;
 
 use Pimcore\Tool;
-use Pimcore\Model\Cache as CacheManager;
+use Pimcore\Cache as CacheManager;
 
 class Cache extends \Zend_Controller_Plugin_Abstract {
 
     /**
      * @var string
      */
-    protected $cacheKey;
+    protected $defaultCacheKey;
 
     /**
      * @var bool
@@ -166,6 +163,10 @@ class Cache extends \Zend_Controller_Plugin_Abstract {
             }
         }
 
+        $deviceDetector = Tool\DeviceDetector::getInstance();
+        $device = $deviceDetector->getDevice();
+        $deviceDetector->setWasUsed(false);
+
         $appendKey = "";
         // this is for example for the image-data-uri plugin
         if ($request->getParam("pimcore_cache_tag_suffix")) {
@@ -175,11 +176,20 @@ class Cache extends \Zend_Controller_Plugin_Abstract {
             }
         }
 
-        $this->cacheKey = "output_" . md5(Tool::getHostname() . $requestUri) . $appendKey;
+        $this->defaultCacheKey = "output_" . md5($request->getHttpHost() . $requestUri . $appendKey);
+        $cacheKeys = [
+            $this->defaultCacheKey . "_" . $device,
+            $this->defaultCacheKey,
+        ];
 
-        $cacheItem = CacheManager::load($this->cacheKey, true);
+        $cacheItem = null;
+        foreach($cacheKeys as $cacheKey) {
+            $cacheItem = CacheManager::load($cacheKey, true);
+            if($cacheItem) break;
+        }
+
         if (is_array($cacheItem) && !empty($cacheItem)) {
-            header("X-Pimcore-Output-Cache-Tag: " . $this->cacheKey, true, 200);
+            header("X-Pimcore-Output-Cache-Tag: " . $cacheKey, true, 200);
             header("X-Pimcore-Output-Cache-Date: " . $cacheItem["date"]);
             
             foreach ($cacheItem["rawHeaders"] as $header) {
@@ -232,7 +242,13 @@ class Cache extends \Zend_Controller_Plugin_Abstract {
                     "date" => \Zend_Date::now()->getIso()
                 );
 
-                CacheManager::save($cacheItem, $this->cacheKey, array("output"), $this->lifetime, 1000);
+                $cacheKey = $this->defaultCacheKey;
+                $deviceDetector = Tool\DeviceDetector::getInstance();
+                if($deviceDetector->wasUsed()) {
+                    $cacheKey .= "_" . $deviceDetector->getDevice();
+                }
+
+                CacheManager::save($cacheItem, $cacheKey, array("output"), $this->lifetime, 1000);
             }
             catch (\Exception $e) {
                 \Logger::error($e);
@@ -241,7 +257,7 @@ class Cache extends \Zend_Controller_Plugin_Abstract {
         } else {
             // output-cache was disabled, add "output" as cleared tag to ensure that no other "output" tagged elements
             // like the inc and snippet cache get into the cache
-            CacheManager::addClearedTag("output");
+            CacheManager::addClearedTag("output_inline");
         }
     }
 

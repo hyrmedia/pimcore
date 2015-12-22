@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  *
  * @author      JA
  */
@@ -525,27 +522,28 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
 
         try {
             if ($this->isGet()) {
+                $condition = urldecode($this->getParam("condition"));
 
                 $definition = array();
 
                 $list = new Object\KeyValue\GroupConfig\Listing();
+                if($condition){
+                    $list->setCondition($condition);
+                }
                 $list->load();
                 $items = $list->getList();
 
                 $groups = array();
 
                 foreach ($items as $item) {
-                    $group = array();
-                    $group["id"] = $item->getId();
-                    $group["name"] =  $item->getName();
-                    if ($item->getDescription()) {
-                        $group["description"] =  $item->getDescription();
-                    }
-                    $groups[] = $group;
+                    $groups[] = $item->getObjectVars();
                 }
                 $definition["groups"] = $groups;
 
                 $list = new Object\KeyValue\KeyConfig\Listing();
+                if($condition){
+                    $list->setCondition($condition);
+                }
                 $list->load();
                 $items = $list->getList();
 
@@ -553,28 +551,7 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
 
                 foreach ($items as $item) {
                     /** @var  $item Object\KeyValue\KeyConfig */
-                    $key= array();
-                    $key['id'] = $item->getId();
-                    $key['name'] = $item->getName();
-                    if ($item->getDescription()) {
-                        $key['description'] = $item->getDescription();
-                    }
-                    $key['type'] = $item->getType();
-                    if ($item->getUnit()) {
-                        $key['unit'] = $item->getUnit();
-                    }
-                    if ($item->getGroup()) {
-                        $key['group'] = $item->getGroup();
-                    }
-                    if ($item->getPossibleValues()) {
-                        $key['possiblevalues'] = $item->getPossibleValues();
-                    }
-
-                    if ($item->getMandatory()) {
-                        $key["mandatory"] = 1;
-                    }
-
-                    $keys[] = $key;
+                    $keys[] = $item->getObjectVars();
                 }
                 $definition["keys"] = $keys;
                 $this->encoder->encode(array("success" => true, "data" => $definition));
@@ -628,7 +605,7 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
                     } else {
                         // check if the getter is implemented by a plugin
                         $class = "\\Pimcore\\Model\\Webservice\\Data\\Document\\" . ucfirst($type) . "\\Out";
-                        if (class_exists($class)) {
+                        if (Tool::classExists($class)) {
                             Document\Service::loadAllDocumentFields($doc);
                             $object = Webservice\Data\Mapper::map($doc, $class, "out");
                         } else {
@@ -807,11 +784,11 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
         if (!empty($condition)) $params["condition"] = $condition;
         if (!empty($groupBy)) $params["groupBy"] = $groupBy;
 
-        $listClassName = "\\Pimcore\\Model\\Object";
+        $listClassName = "\\Pimcore\\Model\\Object\\AbstractObject";
         if(!empty($objectClass)) {
             $listClassName = "\\Pimcore\\Model\\Object\\" . ucfirst($objectClass);
             if(!Tool::classExists($listClassName)) {
-                $listClassName = "\\Pimcore\\Model\\Object";
+                $listClassName = "Pimcore\\Model\\Object\\AbstractObject";
             }
         }
 
@@ -918,7 +895,7 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
             }
             $sql = "select " . $col . " from " .$type . "s where " . $col . " IN (" . implode(',', $idList) . ")";
 
-            $result = \Pimcore\Resource::get()->fetchAll($sql);
+            $result = \Pimcore\Db::get()->fetchAll($sql);
             foreach ($result as $item) {
                 $id = $item[$col];
                 if ($condense) {
@@ -1107,7 +1084,7 @@ class Webservice_RestController extends \Pimcore\Controller\Action\Webservice {
      */
     public function translationsAction(){
         $this->checkUserPermission("translations");
-        $type = $this->_getParam('type');
+        $type = $this->getParam('type');
 
         try{
             $params = $this->getRequest()->getQuery();

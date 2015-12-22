@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Tool;
@@ -20,7 +17,7 @@ use Pimcore\File;
 class Admin {
 
     /**
-     * finds the translation file for a given language
+     * Finds the translation file for a given language
      *
      * @static
      * @param  string $language
@@ -29,9 +26,9 @@ class Admin {
     public static function getLanguageFile($language){
 
         //first try website languages dir, as fallback the core dir
-       $languageFile = PIMCORE_CONFIGURATION_DIRECTORY . "/texts/" . $language . ".csv";
+        $languageFile = PIMCORE_CONFIGURATION_DIRECTORY . "/texts/" . $language . ".json";
         if(!is_file($languageFile)){
-            $languageFile =  PIMCORE_PATH . "/config/texts/" . $language . ".csv";
+            $languageFile =  PIMCORE_PATH . "/config/texts/" . $language . ".json";
         }
         return $languageFile;
 
@@ -53,7 +50,7 @@ class Admin {
                 foreach ($files as $file) {
                     if (is_file($filesDir . $file)) {
                         $parts = explode(".", $file);
-                        if ($parts[1] == "csv") {
+                        if ($parts[1] == "json") {
                             if (\Zend_Locale::isLocale($parts[0])) {
                                 $languages[] = $parts[0];
                             }
@@ -147,18 +144,18 @@ class Admin {
         if(empty($sessionId)) {
             $sessionId = session_id();
         }
-        
+
         if(empty($sessionId)) {
             throw new \Exception("It's not possible to activate the maintenance mode without a session-id");
         }
 
         $config = new \Zend_Config(array(
-               "sessionId" => $sessionId
+            "sessionId" => $sessionId
         ), true);
 
         $writer = new \Zend_Config_Writer_Xml(array(
-              "config" => $config,
-              "filename" => self::getMaintenanceModeFile()
+            "config" => $config,
+            "filename" => self::getMaintenanceModeFile()
         ));
         $writer->write();
         @chmod(self::getMaintenanceModeFile(), 0777); // so it can be removed also via FTP, ...
@@ -203,5 +200,42 @@ class Admin {
         }
 
         return null;
+    }
+
+
+    /**
+     * @return true if in EXT JS5 mode
+     */
+    public static function isExtJS6() {
+        if (isset($_SERVER["HTTP_X_PIMCORE_EXTJS_VERSION_MAJOR"]) && $_SERVER["HTTP_X_PIMCORE_EXTJS_VERSION_MAJOR"] == 6) {
+            return true;
+        }
+
+        if(isset($_REQUEST["extjs6"])) {
+            return (bool) $_REQUEST["extjs6"];
+        }
+
+        $config = \Pimcore\Config::getSystemConfig();
+        $mainSwitch = $config->general->extjs6;
+        if ($mainSwitch) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function reorderWebsiteLanguages($user, $languages) {
+        if (!is_array($languages)) {
+            $languages = explode(",", $languages);
+        }
+
+        $contentLanguages = $user->getContentLanguages();
+        if ($contentLanguages) {
+            $contentLanguages = array_intersect($contentLanguages, $languages);
+            $newLanguages = array_diff($languages, $contentLanguages);
+            $languages = array_merge($contentLanguages, $newLanguages);
+
+        }
+        return implode(",", $languages);
     }
 }

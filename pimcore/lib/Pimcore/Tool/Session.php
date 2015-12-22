@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Tool;
@@ -31,44 +28,50 @@ class Session {
     protected static $openedSessions = 0;
 
     /**
-     * @static
-     * @return void
+     * when using mod_php, session_start() always adds an Set-Cookie header when called,
+     * this is the case in self::get(), so depending on how often self::get() is called the more
+     * header will get added to the response, so we clean them up in Pimcore::outputBufferEnd()
+     * to avoid problems with (reverse-)proxies such as Varnish who do not like too much Set-Cookie headers
+     * @var bool
      */
-    public static function initSession() {
+    protected static $sessionCookieCleanupNeeded = false;
 
-        if(!\Zend_Session::isStarted()) {
-            \Zend_Session::setOptions(array(
-                "throw_startup_exceptions" => false,
-                "gc_maxlifetime" => 7200,
-                "name" => "pimcore_admin_sid",
-                "strict" => false,
-                "use_trans_sid" => false,
-                "use_only_cookies" => false,
-                "cookie_httponly" => true
-            ));
+    /**
+     * @var array
+     */
+    protected static $options = [
+        "throw_startup_exceptions" => false,
+        "gc_maxlifetime" => 7200,
+        "name" => "pimcore_admin_sid",
+        "strict" => false,
+        "use_trans_sid" => false,
+        "use_only_cookies" => false,
+        "cookie_httponly" => true
+    ];
+
+    /**
+     * @var array
+     */
+    protected static $restoreSession = [];
+
+    /**
+     * @param $name
+     * @param $value
+     */
+    public static function setOption($name, $value) {
+        self::$options[$name] = $value;
+    }
+
+    /**
+     * @param $name
+     * @return mixed
+     */
+    public static function getOption($name) {
+        if(isset(self::$options[$name])) {
+            return self::$options[$name];
         }
 
-        try {
-            try {
-                if(!\Zend_Session::isStarted()) {
-                    $sName = \Zend_Session::getOptions("name");
-
-                    // only set the session id if the cookie isn't present, otherwise Set-Cookie is always in the headers
-                    if (array_key_exists($sName, $_REQUEST) && !empty($_REQUEST[$sName]) && (!array_key_exists($sName, $_COOKIE) || empty($_COOKIE[$sName]))) {
-                        // get zend_session work with session-id via get (since SwfUpload doesn't support cookies)
-                        \Zend_Session::setId($_REQUEST[$sName]);
-                    }
-                }
-            }
-            catch (\Exception $e) {
-                \Logger::error("Problem while starting session");
-                \Logger::error($e);
-            }
-        }
-        catch (\Exception $e) {
-            \Logger::emergency("there is a problem with admin session");
-            die();
-        }
+        return null;
     }
 
     /**
@@ -78,10 +81,7 @@ class Session {
      */
     public static function useSession($func, $namespace = "pimcore_admin") {
 
-        self::initSession();
-
         $ret = $func(self::get($namespace));
-
         self::writeClose();
 
         return $ret;
@@ -90,23 +90,54 @@ class Session {
     /**
      * @param string $namespace
      * @param bool $readOnly
-     * @return \stdClass
+     * @return \Zend_Session_Namespace
      * @throws \Zend_Session_Exception
      */
     public static function get ($namespace = "pimcore_admin", $readOnly = false) {
-        self::initSession();
 
-        if(!\Zend_Session::isStarted()) {
+        $initSession = !\Zend_Session::isStarted();
+        $forceStart = !$readOnly; // we don't force the session to start in read-only mode (default behavior)
+        $sName = self::getOption("name");
+
+        if(self::backupForeignSession()) {
+            $initSession = true;
+            $forceStart = true;
+        }
+
+        if($initSession) {
+            \Zend_Session::setOptions(self::$options);
+        }
+
+        try {
+            try {
+                if($initSession) {
+                    // only set the session id if the cookie isn't present, otherwise Set-Cookie is always in the headers
+                    if (array_key_exists($sName, $_REQUEST) && !empty($_REQUEST[$sName]) && (!array_key_exists($sName, $_COOKIE) || empty($_COOKIE[$sName]))) {
+                        // get zend_session work with session-id via get (since SwfUpload doesn't support cookies)
+                        \Zend_Session::setId($_REQUEST[$sName]);
+                    }
+                }
+            } catch (\Exception $e) {
+                \Logger::error("Problem while starting session");
+                \Logger::error($e);
+            }
+        } catch (\Exception $e) {
+            \Logger::emergency("there is a problem with admin session");
+            die();
+        }
+
+        if($initSession) {
             \Zend_Session::start();
         }
 
-        if(!$readOnly) { // we don't force the session to start in read-only mode
+        if($forceStart) {
             @session_start();
+            self::$sessionCookieCleanupNeeded = true;
         }
 
         if(!array_key_exists($namespace, self::$sessions) || !self::$sessions[$namespace] instanceof \Zend_Session_Namespace) {
             try {
-                self::$sessions[$namespace] = new \Zend_Session_Namespace($namespace);
+                self::$sessions[$namespace] = new Session\Container($namespace);
             } catch (\Exception $e) {
                 // invalid session, regenerate the session, and return a dummy object
                 \Zend_Session::regenerateId();
@@ -115,6 +146,8 @@ class Session {
         }
 
         self::$openedSessions++;
+
+        self::$sessions[$namespace]->unlock();
 
         return self::$sessions[$namespace];
     }
@@ -125,6 +158,7 @@ class Session {
      */
     public static function getReadOnly($namespace = "pimcore_admin") {
         $session = self::get($namespace, true);
+        $session->lock();
         self::writeClose();
         return $session;
     }
@@ -137,6 +171,8 @@ class Session {
 
         if(!self::$openedSessions) { // do not write session data if there's still an open session
             session_write_close();
+
+            self::restoreForeignSession();
         }
     }
 
@@ -147,4 +183,48 @@ class Session {
         \Zend_Session::regenerateId();
     }
 
+    /**
+     * @return bool
+     */
+    public static function isSessionCookieCleanupNeeded() {
+        return self::$sessionCookieCleanupNeeded;
+    }
+
+    /**
+     * @return bool
+     */
+    protected static function backupForeignSession() {
+        $sName = self::getOption("name");
+        if(session_id() && $sName != session_name()) {
+            // there's a different session in use, stop it and restart the admin session
+            self::$restoreSession = [
+                "name" => session_name(),
+                "id" => session_id()
+            ];
+
+            session_write_close();
+            session_id($_COOKIE[$sName]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return bool
+     */
+    protected static function restoreForeignSession() {
+        if(!empty(self::$restoreSession)) {
+            session_write_close();
+
+            session_name(self::$restoreSession["name"]);
+            session_id(self::$restoreSession["id"]);
+            @session_start();
+
+            return true;
+        }
+
+        return false;
+    }
 }

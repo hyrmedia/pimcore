@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Tool;
@@ -34,6 +31,8 @@ class Less {
                 preg_match("/href=\"([^\"]+)*\"/", $tag, $href);
                 if(array_key_exists(1, $href) && !empty($href[1])) {
                     $source = $href[1];
+
+                    $source = preg_replace("/\?_dc=[\d]+/", "", $source);
 
                     if (is_file(PIMCORE_ASSET_DIRECTORY . $source)) {
                         $path = PIMCORE_ASSET_DIRECTORY . $source;
@@ -159,13 +158,12 @@ class Less {
 
         // use php implementation of lessc if it doesn't work
         if(empty($compiledContent)) {
-            include_once("lessc.inc.php");
-            $less = new \lessc();
-            $less->importDir = dirname($path);
-            $compiledContent = $less->parse(file_get_contents($path));
+            $parser = new \Less_Parser();
+            $parser->parse(file_get_contents($path));
+            $compiledContent = $parser->getCss();
 
             // add a comment to the css so that we know it's compiled by lessphp
-            $compiledContent = "\n\n/**** compiled with lessphp ****/\n\n" . $compiledContent;
+            $compiledContent = "\n\n/**** compiled with lessphp/Less_Parser ****/\n\n" . $compiledContent;
         }
 
         if($source) {

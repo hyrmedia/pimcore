@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Webservice
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Webservice;
@@ -191,12 +188,18 @@ class Service
                 "limit" => $limit,
                 "groupBy" => $groupBy
             ));
+            $list->setUnpublished(1);
 
             $items = array();
+            /** @var  $doc Document */
             foreach ($list as $doc) {
                 $item = new Webservice\Data\Document\Listing\Item();
                 $item->id = $doc->getId();
                 $item->type = $doc->getType();
+                if (method_exists($doc, "getPublished")) {
+                    $item->published = $doc->getPublished();
+                }
+
 
                 $items[] = $item;
             }
@@ -628,8 +631,7 @@ class Service
     {
         try {
             if ($wsDocument instanceof Webservice\Data\Object\Concrete\In) {
-//                $wsDocument->type = "object";
-                $classname = "\\Pimcore\\Model\\Object\\" . ucfirst($wsDocument->className);
+                $classname = Tool::getModelClassMapping("\\Pimcore\\Model\\Object\\" . ucfirst($wsDocument->className));
                 if (Tool::classExists($classname)) {
                     $object = new $classname();
 
@@ -819,21 +821,26 @@ class Service
             if (!empty($limit)) $params["limit"] = $limit;
             if (!empty($groupBy)) $params["groupBy"] = $groupBy;
 
-            $listClassName = "Object";
+            $listClassName = "\\Pimcore\\Model\\Object";
             if(!empty($objectClass)) {
-                $listClassName = "Object\\" . ucfirst($objectClass);
+
+                $listClassName = "\\Pimcore\\Model\\Object\\" . ucfirst($objectClass);
                 if(!Tool::classExists($listClassName)) {
-                    $listClassName = "Object";
+                    $listClassName = "\\Pimcore\\Model\\Object";
                 }
             }
 
             $list = $listClassName::getList($params);
+            $list->setUnpublished(1);
 
             $items = array();
             foreach ($list as $object) {
                 $item = new Webservice\Data\Object\Listing\Item();
                 $item->id = $object->getId();
                 $item->type = $object->getType();
+                if (method_exists($object, "getPublished")) {
+                    $item->published = $object->getPublished();
+                }
 
                 $items[] = $item;
             }
@@ -943,17 +950,18 @@ class Service
     protected function updateDocument($wsDocument)
     {
         $document = Document::getById($wsDocument->id);
-        $this->setModificationParams($document, false);
 
+        if ($document === NULL)
+            throw new \Exception("Document with given ID (" . $wsDocument->id . ") does not exist.");
+
+        $this->setModificationParams($document, false);
 
         if ($document instanceof Document and strtolower($wsDocument->type) == $document->getType()) {
             $wsDocument->reverseMap($document);
             $document->save();
             return true;
-        } else if ($document instanceof Document) {
-            throw new \Exception("Type mismatch for given document with ID [" . $wsDocument->id . "] and existing document with id [" . $document->getId() . "]");
         } else {
-            throw new \Exception("Document with given ID (" . $wsDocument->id . ") does not exist.");
+            throw new \Exception("Type mismatch for given document with ID [" . $wsDocument->id . "] and existing document with id [" . $document->getId() . "]");
         }
     }
 
@@ -966,6 +974,9 @@ class Service
     {
         $object = Object\AbstractObject::getById($wsDocument->id);
 
+        if ($object === NULL)
+            throw new \Exception("Object with given ID (" . $wsDocument->id . ") does not exist.");
+
         $this->setModificationParams($object, false);
         if ($object instanceof Object\Concrete and $object->getClassName() == $wsDocument->className) {
 
@@ -976,10 +987,8 @@ class Service
             $wsDocument->reverseMap($object);
             $object->save();
             return true;
-        } else if ($object instanceof Object\AbstractObject) {
-            throw new \Exception("Type/Class mismatch for given object with ID [" . $wsDocument->id . "] and existing object with id [" . $object->getId() . "]");
         } else {
-            throw new \Exception("Object with given ID (" . $wsDocument->id . ") does not exist.");
+            throw new \Exception("Type/Class mismatch for given object with ID [" . $wsDocument->id . "] and existing object with id [" . $object->getId() . "]");
         }
     }
 
@@ -992,15 +1001,17 @@ class Service
     {
 
         $asset = Asset::getById($wsDocument->id);
+
+        if ($asset === NULL)
+            throw new \Exception("Asset with given ID (" . $wsDocument->id . ") does not exist.");
+
         $this->setModificationParams($asset, false);
         if ($asset instanceof Asset and $asset->getType() == strtolower($wsDocument->type)) {
             $wsDocument->reverseMap($asset);
             $asset->save();
             return true;
-        } else if ($asset instanceof Asset) {
-            throw new \Exception("Type mismatch for given asset with ID [" . $wsDocument->id . "] and existing asset with id [" . $asset->getId() . "]");
         } else {
-            throw new \Exception("Asset with given ID (" . $wsDocument->id . ") does not exist.");
+            throw new \Exception("Type mismatch for given asset with ID [" . $wsDocument->id . "] and existing asset with id [" . $asset->getId() . "]");
         }
 
     }
@@ -1034,7 +1045,7 @@ class Service
         try {
             $class = Object\ClassDefinition::getById($id);
             if ($class instanceof Object\ClassDefinition) {
-                $apiClass = Webservice\Data\Mapper::map($class, "\\Pimcore\\Model\\Webservice\\Data\\Class\\Out", "out");
+                $apiClass = Webservice\Data\Mapper::map($class, "\\Pimcore\\Model\\Webservice\\Data\\ClassDefinition\\Out", "out");
                 unset($apiClass->fieldDefinitions);
                 return $apiClass;
             }
@@ -1073,11 +1084,11 @@ class Service
         if(in_array($type,array('website','admin'))){
             $listClass = '\\Pimcore\\Model\\Translation\\' . ucfirst($type) .'\\Listing';
             /**
-             * @var $list Translation\Website
+             * @var $list \Pimcore\Model\Translation\Website\Listing
              */
             $list = new $listClass();
             if($key = $params['key']){
-                $list->addConditionParam(" `key` LIKE " . \Pimcore\Resource::get()->quote("%" . $key . "%"),'');
+                $list->addConditionParam(" `key` LIKE " . \Pimcore\Db::get()->quote("%" . $key . "%"),'');
             }
 
             $list->addConditionParam(" `creationDate` >= ? ", $params['creationDateFrom']);

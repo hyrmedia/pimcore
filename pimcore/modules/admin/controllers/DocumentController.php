@@ -2,19 +2,16 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
-use Pimcore\Tool\Session; 
-use Pimcore\Tool; 
+use Pimcore\Tool\Session;
+use Pimcore\Tool;
 Use Pimcore\Config;
 use Pimcore\Model\Document;
 use Pimcore\Model\Version;
@@ -79,8 +76,10 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
                                         (select list from users_workspaces_document where userId in (" . implode(',', $userIds) . ") and LOCATE(cpath,CONCAT(path,`key`))=1  ORDER BY LENGTH(cpath) DESC LIMIT 1)=1
                                         )", $document->getId());
             }
-            $list->setOrderKey("index");
-            $list->setOrder("asc");
+
+            $list->setOrderKey(["index", "id"]);
+            $list->setOrder(["asc","asc"]);
+
             $list->setLimit($limit);
             $list->setOffset($offset);
 
@@ -96,6 +95,8 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
 
         if ($this->getParam("limit")) {
             $this->_helper->json(array(
+                "offset" => $offset,
+                "limit" => $limit,
                 "total" => $document->getChildAmount($this->getUser()),
                 "nodes" => $documents
             ));
@@ -179,13 +180,13 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
                         // this is the fallback for custom document types using prefixes
                         // so we need to check if the class exists first
                         if(!\Pimcore\Tool::classExists($classname)) {
-                            $oldStyleClass = "Document_" . ucfirst($this->getParam("type"));
+                            $oldStyleClass = "\\Document_" . ucfirst($this->getParam("type"));
                             if(\Pimcore\Tool::classExists($oldStyleClass)) {
                                 $classname = $oldStyleClass;
                             }
                         }
 
-                        if (class_exists($classname)) {
+                        if (Tool::classExists($classname)) {
                             $document = $classname::create($this->getParam("parentId"), $createValues);
                             try {
                                 $document->save();
@@ -251,8 +252,13 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
         } else if ($this->getParam("id")) {
             $document = Document::getById($this->getParam("id"));
             if ($document->isAllowed("delete")) {
-                $document->delete();
-                $this->_helper->json(array("success" => true));
+                try {
+                    $document->delete();
+                    $this->_helper->json(array("success" => true));
+                } catch (\Exception $e) {
+                    \Logger::err($e);
+                    $this->_helper->json(array("success" => false, "message" => $e->getMessage()));
+                }
             }
         }
 
@@ -801,60 +807,61 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
 
     public function diffVersionsAction()
     {
-
-        include_once 'DaisyDiff/HTMLDiff.php';
-        include_once 'simple_html_dom.php';
-
         $versionFrom = Version::getById($this->getParam("from"));
-        $versionTo = Version::getById($this->getParam("to"));
-
         $docFrom = $versionFrom->loadData();
-        $docTo = $versionTo->loadData();
-
-        // unlock the current session to access the version files
-        session_write_close();
-
         $request = $this->getRequest();
 
-        $fromSourceHtml = Tool::getHttpData($request->getScheme() . "://" . $request->getHttpHost() . $docFrom->getFullPath() . "?pimcore_version=" . $this->getParam("from") . "&pimcore_admin_sid=" . $_COOKIE["pimcore_admin_sid"]);
-        $toSourceHtml = Tool::getHttpData($request->getScheme() . "://" . $request->getHttpHost() . $docTo->getFullPath() . "?pimcore_version=" . $this->getParam("to") . "&pimcore_admin_sid=" . $_COOKIE["pimcore_admin_sid"]);
+        $sessionName = Tool\Session::getOption("name");
+        $prefix = $request->getScheme() . "://" . $request->getHttpHost() . $docFrom->getFullPath() . "?pimcore_version=";
+        $fromUrl = $prefix . $this->getParam("from") . "&" . $sessionName . "=" . $_COOKIE[$sessionName];
+        $toUrl = $prefix . $this->getParam("to") . "&" . $sessionName . "=" . $_COOKIE[$sessionName];
 
-        $fromSource = str_get_html($fromSourceHtml);
-        $toSource = str_get_html($toSourceHtml);
+        $fromFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/version-diff-tmp-" . uniqid() . ".png";
+        $toFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/version-diff-tmp-" . uniqid() . ".png";
+        $diffFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/version-diff-tmp-" . uniqid() . ".png";
 
-        if($fromSource && $toSource) {
-            if ($docFrom instanceof Document\Page) {
-                $from = $fromSource->find("body", 0);
-                $to = $toSource->find("body", 0);
+        if(\Pimcore\Image\HtmlToImage::isSupported() && class_exists("Imagick")) {
+            \Pimcore\Image\HtmlToImage::convert($fromUrl, $fromFile);
+            \Pimcore\Image\HtmlToImage::convert($toUrl, $toFile);
+
+            $image1 = new Imagick($fromFile);
+            $image2 = new Imagick($toFile);
+
+            if($image1->getImageWidth() == $image2->getImageWidth() && $image1->getImageHeight() == $image2->getImageHeight()) {
+                $result = $image1->compareImages($image2, Imagick::METRIC_MEANSQUAREERROR);
+                $result[0]->setImageFormat("png");
+
+                $result[0]->writeImage($diffFile);
+                $result[0]->clear();
+                $result[0]->destroy();
+
+                $this->view->image = base64_encode(file_get_contents($diffFile));
+                unlink($diffFile);
             } else {
-                $from = $fromSource;
-                $to = $toSource;
+                $this->view->image1 = base64_encode(file_get_contents($fromFile));
+                $this->view->image2 = base64_encode(file_get_contents($toFile));
             }
 
-            $diff = new HTMLDiffer();
-            $text = $diff->htmlDiff($from, $to);
+            // cleanup
+            $image1->clear();
+            $image1->destroy();
+            $image2->clear();
+            $image2->destroy();
 
-
-            if ($docFrom instanceof Document\Page) {
-                $fromSource->find("head", 0)->innertext = $fromSource->find("head", 0)->innertext . '<link rel="stylesheet" type="text/css" href="/pimcore/static/css/daisydiff.css" />';
-                $fromSource->find("body", 0)->innertext = $text;
-
-                echo $fromSource;
-            } else {
-                echo '<link rel="stylesheet" type="text/css" href="/pimcore/static/css/daisydiff.css" />';
-                echo $text;
-            }
+            unlink($fromFile);
+            unlink($toFile);
         } else {
-            echo "Unable to create diff";
+            $this->renderScript("document/diff-versions-unsupported.php");
         }
-
-
-        $this->removeViewRenderer();
     }
 
-
-    protected function getTreeNodeConfig($childDocument)
+    /**
+     * @param $element
+     * @return array
+     */
+    protected function getTreeNodeConfig($element)
     {
+        $childDocument = $element;
 
         $tmpDocument = array(
             "id" => $childDocument->getId(),
@@ -879,6 +886,9 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
 
         // add icon
         $tmpDocument["iconCls"] = "pimcore_icon_" . $childDocument->getType();
+        if (\Pimcore\Tool\Admin::isExtJS6()) {
+            $tmpDocument["expandable"] = $childDocument->hasChilds();
+        }
 
         // set type specific settings
         if ($childDocument->getType() == "page") {
@@ -1119,7 +1129,7 @@ class Admin_DocumentController extends \Pimcore\Controller\Action\Admin\Element
 
         $type = $this->getParam("type");
         $class = "\\Pimcore\\Model\\Document\\" . ucfirst($type);
-        if (class_exists($class)) {
+        if (Tool::classExists($class)) {
             $new = new $class;
 
             // overwrite internal store to avoid "duplicate full path" error

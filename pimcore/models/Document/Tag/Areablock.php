@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document\Tag;
@@ -174,6 +171,7 @@ class Areablock extends Model\Document\Tag {
             $info->setPath(str_replace(PIMCORE_DOCUMENT_ROOT, "", $this->getPathForBrick($this->currentIndex["type"])));
             $info->setConfig($this->getBrickConfig($this->currentIndex["type"]));
         } catch (\Exception $e) {
+            \Logger::err($e);
             $info = null;
         }
 
@@ -338,6 +336,14 @@ class Areablock extends Model\Document\Tag {
     }
 
     protected function getToolBarDefaultConfig () {
+
+        $buttonWidth = 168;
+
+        // @extjs6
+        if(!\Pimcore\Tool\Admin::isExtJS6()) {
+            $buttonWidth = 154;
+        }
+
         return array(
             "areablock_toolbar" => array(
                 "title" => "",
@@ -345,7 +351,7 @@ class Areablock extends Model\Document\Tag {
                 "x" => 20,
                 "y" => 50,
                 "xAlign" => "left",
-                "buttonWidth" => 154,
+                "buttonWidth" => $buttonWidth,
                 "buttonMaxCharacters" => 20
             )
         );
@@ -496,8 +502,8 @@ class Areablock extends Model\Document\Tag {
 
         // read available types
         $areaConfigs = $this->getBrickConfigs();
-        $availableAreas = array();
-        $availableAreasSort = array();
+        $availableAreas = ["name" => [], "index" => []];
+        $availableAreasSort = is_array($options["sorting"]) && count($options["sorting"]) ? $options["sorting"] : (is_array($options["allowed"]) && count($options["allowed"]) ? $options["allowed"] : FALSE);
 
         if(!isset($options["allowed"]) || !is_array($options["allowed"])) {
             $options["allowed"] = array();
@@ -513,7 +519,7 @@ class Areablock extends Model\Document\Tag {
             }
 
 
-            if(empty($options["allowed"]) || in_array($areaName,$options["allowed"])) {
+            if (empty($options["allowed"]) || in_array($areaName, $options["allowed"])) {
 
                 $n = (string) $areaConfig->name;
                 $d = (string) $areaConfig->description;
@@ -534,23 +540,42 @@ class Areablock extends Model\Document\Tag {
                     }
                 }
 
-                $availableAreas[] = array(
+                $sortIndex = FALSE;
+                $sortKey = "name"; //allowed and sorting is not set || areaName is not in allowed
+                if ($availableAreasSort) {
+                    $sortIndex = array_search($areaName, $availableAreasSort);
+                    $sortKey   = $sortIndex === FALSE ? $sortKey : "index";
+                }
+
+                $availableAreas[$sortKey][] = array(
                     "name" => $n,
                     "description" => $d,
                     "type" => $areaName,
-                    "icon" => $icon
+                    "icon" => $icon,
+                    "sortIndex" => $sortIndex
                 );
             }
         }
 
-        // sort with translated names
-        usort($availableAreas,function($a, $b) {
-            if ($a["name"] == $b["name"]) {
-                return 0;
-            }
-            return ($a["name"] < $b["name"]) ? -1 : 1;
-        });
+        if (count($availableAreas["name"])) {
+            // sort with translated names
+            usort($availableAreas["name"], function ($a, $b) {
+                if ($a["name"] == $b["name"]) {
+                    return 0;
+                }
 
+                return ($a["name"] < $b["name"]) ? -1 : 1;
+            });
+        }
+
+        if (count($availableAreas["index"])) {
+            // sort by allowed brick config order
+            usort($availableAreas["index"], function ($a, $b) {
+                return $a["sortIndex"] - $b["sortIndex"];
+            });
+        }
+
+        $availableAreas = array_merge($availableAreas["index"], $availableAreas["name"]);
         $options["types"] = $availableAreas;
 
         if(isset($options["group"]) && is_array($options["group"])) {
@@ -650,7 +675,7 @@ class Areablock extends Model\Document\Tag {
     public function getFromWebserviceImport($wsElement, $idMapper = null){
         $data = $wsElement->value;
         if(($data->indices === null or is_array($data->indices)) and ($data->current==null or is_numeric($data->current))
-                    and ($data->currentIndex==null or is_numeric($data->currentIndex))) {
+            and ($data->currentIndex==null or is_numeric($data->currentIndex))) {
             $indices = $data["indices"];
             if ($indices instanceof \stdclass) {
                 $indices = (array) $indices;
@@ -710,8 +735,8 @@ class Areablock extends Model\Document\Tag {
      */
     public function getBrickConfig($name) {
         if($this->isCustomAreaPath()) {
-            $path = $this->getPathForBrick($name);
-            ExtensionManager::getBrickConfig($name, $path);
+            $path = $this->getAreaDirectory();
+            return ExtensionManager::getBrickConfig($name, $path);
         }
 
         return ExtensionManager::getBrickConfig($name);
@@ -752,11 +777,11 @@ class Areablock extends Model\Document\Tag {
         $doc = Model\Document\Page::getById( $this->getDocumentId() );
 
         $list = array();
-        foreach($this->getData() as $item)
+        foreach($this->getData() as $index => $item)
         {
             if($item['type'] == $name)
             {
-                $list[] = new Areablock\Item($doc, $this->getName(), $item['key']);
+                $list[ $index ] = new Areablock\Item($doc, $this->getName(), $item['key']);
             }
         }
 

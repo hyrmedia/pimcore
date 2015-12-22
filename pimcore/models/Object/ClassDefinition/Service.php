@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Object|Class
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Object\ClassDefinition;
@@ -70,6 +67,7 @@ class Service  {
         $class->setLayoutDefinitions($layout);
 
         // set properties of class
+        $class->setDescription($importData["description"]);
         $class->setModificationDate(time());
         $class->setUserModification($userId);
         $class->setIcon($importData["icon"]);
@@ -77,6 +75,7 @@ class Service  {
         $class->setAllowVariants($importData["allowVariants"]);
         $class->setShowVariants($importData["showVariants"]);
         $class->setParentClass($importData["parentClass"]);
+        $class->setUseTraits($importData["useTraits"]);
         $class->setPreviewUrl($importData["previewUrl"]);
         $class->setPropertyVisibility($importData["propertyVisibility"]);
 
@@ -151,12 +150,19 @@ class Service  {
         $importData = \Zend_Json::decode($json);
 
         // reverse map the class name to the class ID, see: self::generateObjectBrickJson()
+        $toAssignClassDefinitions = [];
         if(is_array($importData["classDefinitions"])) {
             foreach($importData["classDefinitions"] as &$cd) {
-                if(!is_numeric($cd["classname"])) {
+                if(is_numeric($cd["classname"])) {
+                    $class = Object\ClassDefinition::getById($cd["classname"]);
+                    if($class) {
+                        $toAssignClassDefinitions[] = $cd;
+                    }
+                } else {
                     $class = Object\ClassDefinition::getByName($cd["classname"]);
                     if($class) {
                         $cd["classname"] = $class->getId();
+                        $toAssignClassDefinitions[] = $cd;
                     }
                 }
             }
@@ -164,7 +170,7 @@ class Service  {
 
         $layout = self::generateLayoutTreeFromArray($importData["layoutDefinitions"], $throwException);
         $objectBrick->setLayoutDefinitions($layout);
-        $objectBrick->setClassDefinitions($importData["classDefinitions"]);
+        $objectBrick->setClassDefinitions($toAssignClassDefinitions);
         $objectBrick->setParentClass($importData["parentClass"]);
         $objectBrick->save();
 
@@ -181,7 +187,7 @@ class Service  {
 
         if (is_array($array) && count($array) > 0) {
 
-            $class = "Object\\ClassDefinition\\".ucfirst($array["datatype"])."\\" . ucfirst($array["fieldtype"]);
+            $class = "\\Pimcore\\Model\\Object\\ClassDefinition\\".ucfirst($array["datatype"])."\\" . ucfirst($array["fieldtype"]);
             if (!\Pimcore\Tool::classExists($class)) {
                 $class = "\\Object_Class_" .ucfirst($array["datatype"])."_" . ucfirst($array["fieldtype"]);
                 if (!\Pimcore\Tool::classExists($class)) {
@@ -234,7 +240,7 @@ class Service  {
             $tableDefinitions = array();
         }
 
-        $db = \Pimcore\Resource::get();
+        $db = \Pimcore\Db::get();
         $tmp = array();
         foreach ($tableNames as $tableName) {
             $tmp[$tableName] = $db->fetchAll("show columns from " . $tableName);

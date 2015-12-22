@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Object
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Object\Data;
@@ -70,7 +67,7 @@ class KeyValue extends Model\AbstractModel {
      * @return string
      */
     public function __toString() {
-        $str = "\\Object\\Data\\KeyValue oid=" . $this->objectId . "\n";
+        $str = "Object\\Data\\KeyValue oid=" . $this->objectId . "\n";
         $props = $this->getInternalProperties();
 
         if (is_array($props)) {
@@ -146,6 +143,9 @@ class KeyValue extends Model\AbstractModel {
     public function getProperties($forEditMode = false) {
         $result = array();
         $object = Object::getById($this->objectId);
+        if(!$object){
+            throw new \Exception('Object with Id '. $this->objectId .' not found');
+        }
         $objectName = $object->getKey();
 
         $internalKeys = array();
@@ -157,12 +157,12 @@ class KeyValue extends Model\AbstractModel {
             $internalKeys[] = $pair["key"];
         }
 
-        $blacklist = array();
+        $blacklist = $internalKeys;
 
         $parent = Object\Service::hasInheritableParentObject($object);
         while ($parent) {
             $kv = $parent->getKeyvaluepairs();
-            $parentProperties = $kv->getInternalProperties();
+            $parentProperties = $kv ? $kv->getInternalProperties() : [];
 
             $addedKeys = array();
 
@@ -218,6 +218,7 @@ class KeyValue extends Model\AbstractModel {
                     $parentPair["source"] = $parent->getId();
                     $parentPair["altSource"] = $parent->getId();
                     $parentPair["altValue"] = $parentPair["value"];
+                    $parentPair["groupId"] = Object\KeyValue\KeyConfig::getById($parentPair['key'])->getGroup();
                     $result[] = $parentPair;
                 }
             }

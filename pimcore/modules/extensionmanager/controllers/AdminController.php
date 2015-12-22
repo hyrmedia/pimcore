@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\ExtensionManager; 
@@ -82,7 +79,8 @@ class Extensionmanager_AdminController extends \Pimcore\Controller\Action\Admin 
                 "description" => $config->description,
                 "installed" => true,
                 "active" => $isEnabled,
-                "updateable" => $updateable
+                "updateable" => $updateable,
+                "version" => $config->version
             );
             $configurations[] = $brick;
         }
@@ -191,7 +189,7 @@ class Extensionmanager_AdminController extends \Pimcore\Controller\Action\Admin 
         $examplePluginPath = realpath(PIMCORE_PATH . "/modules/extensionmanager/example-plugin");
         $pluginDestinationPath = realpath(PIMCORE_PLUGINS_PATH) . DIRECTORY_SEPARATOR . $name;
 
-        if (preg_match("/^[a-zA-Z0-9]+$/", $name, $matches) && !is_dir($pluginDestinationPath)) {
+        if (preg_match("/^[a-zA-Z0-9_]+$/", $name, $matches) && !is_dir($pluginDestinationPath)) {
             $pluginExampleFiles = rscandir($examplePluginPath);
             foreach ($pluginExampleFiles as $pluginExampleFile) {
                 if(!is_file($pluginExampleFile)) continue;
@@ -247,7 +245,7 @@ class Extensionmanager_AdminController extends \Pimcore\Controller\Action\Admin 
         $pluginName = null;
         $files = rscandir($tempPath);
         foreach ($files as $file) {
-            if(preg_match("@plugin.xml$@", $file)) {
+            if(preg_match("@/plugin.xml$@", $file)) {
                 $rootDir = dirname($file);
 
                 $pluginConfig = new \Zend_Config_Xml($file);

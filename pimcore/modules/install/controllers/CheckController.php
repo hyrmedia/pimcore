@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Model\User;
@@ -46,9 +43,9 @@ class Install_CheckController extends \Pimcore\Controller\Action {
         $memoryLimit = filesize2bytes($memoryLimit . "B");
         $state = "ok";
 
-        if($memoryLimit < 134217728) {
+        if($memoryLimit < 67108000) {
             $state = "error";
-        } else if ($memoryLimit < 268435456) {
+        } else if ($memoryLimit < 134217000) {
             $state = "warning";
         }
 
@@ -58,14 +55,6 @@ class Install_CheckController extends \Pimcore\Controller\Action {
             "state" => $state
         );
 
-
-        // check for safe_mode
-        $safemode = strtolower(ini_get("safe_mode"));
-        $checksPHP[] = array(
-            "name" => "safe_mode (in php.ini)",
-            "link" => "http://www.php.net/safe_mode",
-            "state" => $safemode == "on" ? "error" : "ok"
-        );
 
         // mcrypt
         $checksPHP[] = array(
@@ -186,13 +175,6 @@ class Install_CheckController extends \Pimcore\Controller\Action {
             "state" => class_exists("Memcache") ? "ok" : "warning"
         );
 
-        // PCNTL
-        $checksPHP[] = array(
-            "name" => "PCNTL",
-            "link" => "http://www.php.net/pcntl",
-            "state" => function_exists("pcntl_exec") ? "ok" : "warning"
-        );
-
         // curl for google api sdk
         $checksPHP[] = array(
             "name" => "curl",
@@ -200,27 +182,28 @@ class Install_CheckController extends \Pimcore\Controller\Action {
             "state" => function_exists("curl_init") ? "ok" : "warning"
         );
 
-        // Phar to create phar archives
-        /*$checksPHP[] = array(
-            "name" => "Phar (is writeable)",
-            "link" => "http://www.php.net/phar",
-            "state" => ini_get("phar.readonly") == 0 ? "ok" : "warning"
-        );*/
-
-
 
         $db = null;
 
         if($this->getParam("mysql_adapter")) {
             // this is before installing
             try {
-                $db = \Zend_Db::factory($this->getParam("mysql_adapter"),array(
-                    'host' => $this->getParam("mysql_host"),
+
+                $dbConfig = [
                     'username' => $this->getParam("mysql_username"),
                     'password' => $this->getParam("mysql_password"),
-                    'dbname' => $this->getParam("mysql_database"),
-                    "port" => $this->getParam("mysql_port")
-                ));
+                    'dbname' => $this->getParam("mysql_database")
+                ];
+
+                $hostSocketValue = $this->getParam("mysql_host_socket");
+                if(file_exists($hostSocketValue)) {
+                    $dbConfig["unix_socket"] = $hostSocketValue;
+                } else {
+                    $dbConfig["host"] = $hostSocketValue;
+                    $dbConfig["port"] = $this->getParam("mysql_port");
+                }
+
+                $db = \Zend_Db::factory($this->getParam("mysql_adapter"), $dbConfig);
 
                 $db->getConnection();
             } catch (\Exception $e) {
@@ -228,7 +211,7 @@ class Install_CheckController extends \Pimcore\Controller\Action {
             }
         } else {
             // this is after installing, eg. after a migration, ...
-            $db = \Pimcore\Resource::get();
+            $db = \Pimcore\Db::get();
         }
 
         if($db) {

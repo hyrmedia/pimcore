@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  *
  */
 
@@ -214,7 +211,7 @@ class Document extends Element\AbstractElement {
             $document = new Document();
             // validate path
             if (Tool::isValidPath($path)) {
-                $document->getResource()->getByPath($path);
+                $document->getDao()->getByPath($path);
             }
 
             return self::getById($document->getId());
@@ -250,17 +247,17 @@ class Document extends Element\AbstractElement {
         }
         catch (\Exception $e) {
             try {
-                if (!$document = Cache::load($cacheKey)) {
+                if (!$document = \Pimcore\Cache::load($cacheKey)) {
                     $document = new Document();
-                    $document->getResource()->getById($id);
+                    $document->getDao()->getById($id);
 
                     $mappingClass = "\\Pimcore\\Model\\Document\\" . ucfirst($document->getType());
 
                     // this is the fallback for custom document types using prefixes
                     // so we need to check if the class exists first
-                    if(!\Pimcore\Tool::classExists($mappingClass)) {
+                    if(!Tool::classExists($mappingClass)) {
                         $oldStyleClass = "Document_" . ucfirst($document->getType());
-                        if(\Pimcore\Tool::classExists($oldStyleClass)) {
+                        if(Tool::classExists($oldStyleClass)) {
                             $mappingClass = $oldStyleClass;
                         }
                     }
@@ -269,9 +266,9 @@ class Document extends Element\AbstractElement {
                     if (Tool::classExists($typeClass)) {
                         $document = new $typeClass();
                         \Zend_Registry::set($cacheKey, $document);
-                        $document->getResource()->getById($id);
+                        $document->getDao()->getById($id);
 
-                        Cache::save($document, $cacheKey);
+                        \Pimcore\Cache::save($document, $cacheKey);
                     }
                 }
                 else {
@@ -393,6 +390,8 @@ class Document extends Element\AbstractElement {
             \Pimcore::getEventManager()->trigger("document.preAdd", $this);
         }
 
+        $this->correctPath();
+
         // we wrap the save actions in a loop here, so that we can restart the database transactions in the case it fails
         // if a transaction fails it gets restarted $maxRetries times, then the exception is thrown out
         // this is especially useful to avoid problems with deadlocks in multi-threaded environments (forked workers, ...)
@@ -407,7 +406,6 @@ class Document extends Element\AbstractElement {
                     throw new \Exception("invalid key for document with id [ " . $this->getId() . " ] key is: [" . $this->getKey() . "]");
                 }
 
-                $this->correctPath();
                 // set date
                 $this->setModificationDate(time());
 
@@ -416,13 +414,13 @@ class Document extends Element\AbstractElement {
                 }
 
                 if (!$isUpdate) {
-                    $this->getResource()->create();
+                    $this->getDao()->create();
                 }
 
                 // get the old path from the database before the update is done
                 $oldPath = null;
                 if ($isUpdate) {
-                    $oldPath = $this->getResource()->getCurrentFullPath();
+                    $oldPath = $this->getDao()->getCurrentFullPath();
                 }
 
                 $this->update();
@@ -430,8 +428,8 @@ class Document extends Element\AbstractElement {
                 // if the old path is different from the new path, update all children
                 $updatedChildren = array();
                 if($oldPath && $oldPath != $this->getFullPath()) {
-                    $this->getResource()->updateWorkspaces();
-                    $updatedChildren = $this->getResource()->updateChildsPaths($oldPath);
+                    $this->getDao()->updateWorkspaces();
+                    $updatedChildren = $this->getDao()->updateChildsPaths($oldPath);
                 }
 
                 $this->commit();
@@ -497,13 +495,20 @@ class Document extends Element\AbstractElement {
                 // that is currently in the parent object (in memory), because this might have changed but wasn't not saved
                 $this->setPath(str_replace("//", "/", $parent->getCurrentFullPath() . "/"));
             } else {
-                // parent document doesn't exist anymore, so delete this document
-                //$this->delete();
-
                 // parent document doesn't exist anymore, set the parent to to root
                 $this->setParentId(1);
                 $this->setPath("/");
             }
+
+            if (strlen($this->getKey()) < 1) {
+                throw new \Exception("Document requires key, generated key automatically");
+            }
+        } else if($this->getId() == 1) {
+            // some data in root node should always be the same
+            $this->setParentId(0);
+            $this->setPath("/");
+            $this->setKey("");
+            $this->setType("page");
         }
 
         if(Document\Service::pathExists($this->getRealFullPath())) {
@@ -513,17 +518,15 @@ class Document extends Element\AbstractElement {
             }
         }
 
+        if(strlen($this->getRealFullPath()) > 765) {
+            throw new \Exception("Full path is limited to 765 characters, reduce the length of your parent's path");
+        }
     }
 
     /**
      * @throws \Exception
      */
     protected function update() {
-
-        if (!$this->getKey() && $this->getId() != 1) {
-            $this->delete();
-            throw new \Exception("Document requires key, document with id " . $this->getId() . " deleted");
-        }
 
         $disallowedKeysInFirstLevel = array("install","admin","webservice","plugin");
         if($this->getParentId() == 1 && in_array($this->getKey(), $disallowedKeysInFirstLevel)) {
@@ -532,16 +535,16 @@ class Document extends Element\AbstractElement {
 
         // set index if null
         if($this->getIndex() === null) {
-            $this->setIndex($this->getResource()->getNextIndex());
+            $this->setIndex($this->getDao()->getNextIndex());
         }
 
         // save properties
         $this->getProperties();
-        $this->getResource()->deleteAllProperties();
+        $this->getDao()->deleteAllProperties();
         if (is_array($this->getProperties()) and count($this->getProperties()) > 0) {
             foreach ($this->getProperties() as $property) {
                 if (!$property->getInherited()) {
-                    $property->setResource(null);
+                    $property->setDao(null);
                     $property->setCid($this->getId());
                     $property->setCtype("document");
                     $property->setCpath($this->getRealFullPath());
@@ -565,7 +568,7 @@ class Document extends Element\AbstractElement {
         }
         $d->save();
 
-        $this->getResource()->update();
+        $this->getDao()->update();
 
         //set object to registry
         \Zend_Registry::set("document_" . $this->getId(), $this);
@@ -575,7 +578,7 @@ class Document extends Element\AbstractElement {
      * @param $index
      */
     public function saveIndex($index) {
-        $this->getResource()->saveIndex($index);
+        $this->getDao()->saveIndex($index);
         $this->clearDependentCache();
     }
 
@@ -584,10 +587,10 @@ class Document extends Element\AbstractElement {
      */
     public function clearDependentCache($additionalTags = array()) {
         try {
-            $tags = array("document_" . $this->getId(), "properties", "output");
+            $tags = array("document_" . $this->getId(), "document_properties", "output");
             $tags = array_merge($tags, $additionalTags);
 
-            Cache::clearTags($tags);
+            \Pimcore\Cache::clearTags($tags);
         }
         catch (\Exception $e) {
             \Logger::crit($e);
@@ -651,12 +654,12 @@ class Document extends Element\AbstractElement {
     public function hasChilds() {
         if(is_bool($this->hasChilds)){
             if(($this->hasChilds and empty($this->childs)) or (!$this->hasChilds and !empty($this->childs))){
-                return $this->getResource()->hasChilds();
+                return $this->getDao()->hasChilds();
             } else {
                 return $this->hasChilds;
             }
         }
-        return $this->getResource()->hasChilds();
+        return $this->getDao()->hasChilds();
     }
 
 	/**
@@ -687,12 +690,12 @@ class Document extends Element\AbstractElement {
 	public function hasSiblings() {
 		if(is_bool($this->hasSiblings)){
 			if(($this->hasSiblings and empty($this->siblings)) or (!$this->hasSiblings and !empty($this->siblings))){
-				return $this->getResource()->hasSiblings();
+				return $this->getDao()->hasSiblings();
 			} else {
 				return $this->hasSiblings;
 			}
 		}
-		return $this->getResource()->hasSiblings();
+		return $this->getDao()->hasSiblings();
 	}
 
     /**
@@ -736,16 +739,16 @@ class Document extends Element\AbstractElement {
         }
 
         // remove all properties
-        $this->getResource()->deleteAllProperties();
+        $this->getDao()->deleteAllProperties();
 
         // remove permissions
-        $this->getResource()->deleteAllPermissions();
+        $this->getDao()->deleteAllPermissions();
 
         // remove dependencies
         $d = $this->getDependencies();
         $d->cleanAllForElement($this);
 
-        $this->getResource()->delete();
+        $this->getDao()->delete();
 
         // clear cache
         $this->clearDependentCache();
@@ -946,7 +949,7 @@ class Document extends Element\AbstractElement {
      */
     public function setParentId($parentId) {
         $this->parentId = (int) $parentId;
-        $this->parent = Document::getById($parentId);
+        $this->parent = null;
         return $this;
     }
 
@@ -1055,12 +1058,12 @@ class Document extends Element\AbstractElement {
         if ($this->properties === null) {
             // try to get from cache
             $cacheKey = "document_properties_" . $this->getId();
-            $properties = Cache::load($cacheKey);
+            $properties = \Pimcore\Cache::load($cacheKey);
             if (!is_array($properties)) {
-                $properties = $this->getResource()->getProperties();
+                $properties = $this->getDao()->getProperties();
                 $elementCacheTag = $this->getCacheTag();
-                $cacheTags = array("properties" => "properties", $elementCacheTag => $elementCacheTag);
-                Cache::save($properties, $cacheKey, $cacheTags);
+                $cacheTags = array("document_properties" => "document_properties", $elementCacheTag => $elementCacheTag);
+                \Pimcore\Cache::save($properties, $cacheKey, $cacheTags);
             }
 
             $this->setProperties($properties);
@@ -1198,14 +1201,14 @@ class Document extends Element\AbstractElement {
     public function renewInheritedProperties () {
         $this->removeInheritedProperties();
 
-        // add to registry to avoid infinite regresses in the following $this->getResource()->getProperties()
+        // add to registry to avoid infinite regresses in the following $this->getDao()->getProperties()
         $cacheKey = "document_" . $this->getId();
         if(!\Zend_Registry::isRegistered($cacheKey)) {
             \Zend_Registry::set($cacheKey, $this);
         }
 
         $myProperties = $this->getProperties();
-        $inheritedProperties = $this->getResource()->getProperties(true);
+        $inheritedProperties = $this->getDao()->getProperties(true);
         $this->setProperties(array_merge($inheritedProperties, $myProperties));
     }
 }

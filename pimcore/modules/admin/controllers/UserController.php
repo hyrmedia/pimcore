@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Tool; 
@@ -161,15 +158,51 @@ class Admin_UserController extends \Pimcore\Controller\Action\Admin {
         $this->_helper->json(false);
     }
 
+
+    protected function populateChildNodes($node, &$currentList) {
+        $currentUser = \Pimcore\Tool\Admin::getCurrentUser();
+        $list = new User\Listing();
+        $list->setCondition("parentId = ?", $node->getId());
+        $list->setOrder("ASC");
+        $list->setOrderKey("name");
+        $list->load();
+
+        $childList = $list->getUsers();
+        if(is_array($childList)) {
+            foreach ($childList as $user) {
+                if ($user->getId() == $currentUser->getId()) {
+                    throw new Exception("Cannot delete current user");
+                }
+                if ($user->getId() && $currentUser->getId() && $user->getName() != "system") {
+                    $currentList[] = $user;
+                    $this->populateChildNodes($user, $currentList);
+                }
+            }
+        }
+        return $currentList;
+    }
+
     public function deleteAction() {
         $user = User\AbstractUser::getById(intval($this->getParam("id")));
 
         // only admins are allowed to delete admins and folders
-        // because a folder might conain an admin user, so it's stimply not allowed for users with the "users" permission
+        // because a folder might contain an admin user, so it is simply not allowed for users with the "users" permission
         if(($user instanceof User\Folder && !$this->getUser()->isAdmin()) || ($user instanceof User && $user->isAdmin() && !$this->getUser()->isAdmin())) {
             throw new \Exception("You are not allowed to delete this user");
         } else {
-            $user->delete();
+            if ($user instanceof User\Folder) {
+
+                $list = array($user);
+                $this->populateChildNodes($user, $list);
+                $listCount = count($list);
+                for ($i = $listCount - 1; $i >= 0; $i--) {
+                    // iterate over the list from the so that nothing can get "lost"
+                    $user = $list[$i];
+                    $user->delete();
+                }
+            } else {
+                $user->delete();
+            }
         }
 
         $this->_helper->json(array("success" => true));
@@ -192,15 +225,24 @@ class Admin_UserController extends \Pimcore\Controller\Action\Admin {
                 $values["password"] = Tool\Authentication::getPasswordHash($user->getName(),$values["password"]);
             }
 
-            if(method_exists($user, "setAllAclToFalse")) {
-                $user->setAllAclToFalse();
+            // check if there are permissions transmitted, if so reset them all to false (they will be set later)
+            foreach($values as $key => $value) {
+                if(strpos($key, "permission_") === 0) {
+                    if(method_exists($user, "setAllAclToFalse")) {
+                        $user->setAllAclToFalse();
+                    }
+                    break;
+                }
             }
+
             $user->setValues($values);
 
             // only admins are allowed to create admin users
             // if the logged in user isn't an admin, set admin always to false
-            if(!$this->getUser()->isAdmin()) {
-                $user->setAdmin(false);
+            if(!$this->getUser()->isAdmin() && $user instanceof User) {
+                if($user instanceof User) {
+                    $user->setAdmin(false);
+                }
             }
 
             // check for permissions
@@ -208,7 +250,7 @@ class Admin_UserController extends \Pimcore\Controller\Action\Admin {
             $availableUserPermissions = $availableUserPermissionsList->load();
 
             foreach($availableUserPermissions as $permission) {
-                if($values["permission_" . $permission->getKey()]) {
+                if(isset($values["permission_" . $permission->getKey()])) {
                     $user->setPermission($permission->getKey(), (bool) $values["permission_" . $permission->getKey()]);
                 }
             }
@@ -305,6 +347,8 @@ class Admin_UserController extends \Pimcore\Controller\Action\Admin {
 
         // unset confidential informations
         $userData = object2array($user);
+        $contentLanguages = Tool\Admin::reorderWebsiteLanguages($user, Tool::getValidLanguages());
+        $userData["contentLanguages"] = $contentLanguages;
         unset($userData["password"]);
 
         $conf = \Pimcore\Config::getSystemConfig();

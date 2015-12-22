@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Plugin;
@@ -30,7 +27,7 @@ class HttpErrorLog extends \Zend_Controller_Plugin_Abstract {
             $responseData = $this->getResponse()->getBody();
             if(strlen($responseData) > 20) {
                 $cacheKey = "error_page_response_" . \Pimcore\Tool\Frontend::getSiteKey();
-                \Pimcore\Model\Cache::save($responseData, $cacheKey, array("output"), 900, 9992);
+                \Pimcore\Cache::save($responseData, $cacheKey, array("output"), 900, 9992);
             }
         }
     }
@@ -41,18 +38,26 @@ class HttpErrorLog extends \Zend_Controller_Plugin_Abstract {
     public function writeLog () {
 
         $code = (string) $this->getResponse()->getHttpResponseCode();
-        $db = \Pimcore\Resource::get();
+        $db = \Pimcore\Db::get();
 
         try {
-            $db->insert("http_error_log", array(
-                "path" => $this->getRequest()->getPathInfo(),
-                "code" => (int) $code,
-                "parametersGet" => serialize($_GET),
-                "parametersPost" => serialize($_POST),
-                "cookies" => serialize($_COOKIE),
-                "serverVars" => serialize($_SERVER),
-                "date" => time()
-            ));
+            $uri = $this->getRequest()->getScheme() . "://" . $this->getRequest()->getHttpHost() . $this->getRequest()->getRequestUri();
+
+            $exists = $db->fetchOne("SELECT date FROM http_error_log WHERE uri = ?", $uri);
+            if($exists) {
+                $db->query("UPDATE http_error_log SET `count` = `count` + 1, date = ? WHERE uri = ?", [time(), $uri]);
+            } else {
+                $db->insert("http_error_log", array(
+                    "uri" => $uri,
+                    "code" => (int) $code,
+                    "parametersGet" => serialize($_GET),
+                    "parametersPost" => serialize($_POST),
+                    "cookies" => serialize($_COOKIE),
+                    "serverVars" => serialize($_SERVER),
+                    "date" => time(),
+                    "count" => 1
+                ));
+            }
         } catch (\Exception $e) {
             \Logger::error("Unable to log http error");
             \Logger::error($e);

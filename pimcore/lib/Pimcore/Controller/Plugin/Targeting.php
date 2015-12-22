@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Plugin;
@@ -67,7 +64,7 @@ class Targeting extends \Zend_Controller_Plugin_Abstract {
             return $this->disable();
         }
 
-        $db = \Pimcore\Resource::get();
+        $db = \Pimcore\Db::get();
         $enabled = $db->fetchOne("SELECT id FROM targeting_personas UNION SELECT id FROM targeting_rules LIMIT 1");
         if(!$enabled) {
             return $this->disable();
@@ -184,10 +181,12 @@ class Targeting extends \Zend_Controller_Plugin_Abstract {
                     $personas[] = $persona;
                 }
             }
+            $code = '';
+            // check if persona or target group requires geoip to be included
+            if($this->checkPersonasAndTargetGroupForGeoIPRequirement($personas,$targets)){
+                $code .= '<script type="text/javascript" src="/pimcore/static6/js/frontend/geoip.js/"></script>';
+            }
 
-
-
-            $code = '<script type="text/javascript" src="/pimcore/static/js/frontend/geoip.js/"></script>';
             $code .= '<script type="text/javascript">';
                 $code .= 'var pimcore = pimcore || {};';
                 $code .= 'pimcore["targeting"] = {};';
@@ -195,7 +194,7 @@ class Targeting extends \Zend_Controller_Plugin_Abstract {
                 $code .= 'pimcore["targeting"]["targetingRules"] = ' . \Zend_Json::encode($targets) . ';';
                 $code .= 'pimcore["targeting"]["personas"] = ' . \Zend_Json::encode($personas) . ';';
             $code .= '</script>';
-            $code .= '<script type="text/javascript" src="/pimcore/static/js/frontend/targeting.js"></script>';
+            $code .= '<script type="text/javascript" src="/pimcore/static6/js/frontend/targeting.js"></script>';
             $code .= "\n";
             // analytics
             $body = $this->getResponse()->getBody();
@@ -209,5 +208,31 @@ class Targeting extends \Zend_Controller_Plugin_Abstract {
 
             $this->getResponse()->setBody($body);
         }
+    }
+
+    /**
+     * Checks if the passed List of Personas and List of Targets use geopoints as condition
+     * @param $personas
+     * @param $targets
+     * @return bool
+     */
+    private function checkPersonasAndTargetGroupForGeoIPRequirement($personas,$targets){
+        foreach($personas as $persona) {
+
+            foreach($persona->getConditions() as $condition) {
+
+                if ($condition['type'] == "geopoint") {
+                    return true;
+                }
+            }
+        }
+        foreach($targets as $target) {
+            foreach($target->getConditions() as $condition) {
+                if ($condition['type'] == "geopoint") {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

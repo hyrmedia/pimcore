@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Webservice
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Webservice\Data\Object;
@@ -33,8 +30,11 @@ class Concrete extends Model\Webservice\Data\Object {
      */
     public $className;
 
-
-    public function map($object) {
+    /**
+     * @param $object
+     * @param null $options
+     */
+    public function map($object, $options = null) {
         parent::map($object);
 
         $this->className = $object->getClassName();
@@ -83,29 +83,28 @@ class Concrete extends Model\Webservice\Data\Object {
 
         if (is_array($this->elements)) {
             foreach ($this->elements as $element) {
-                $class = "\\Pimcore\\Model\\Object\\ClassDefinition\\Data\\" . ucfirst($element->type);
-                if (\Pimcore\Tool::classExists($class)) {
-                    $setter = "set" . ucfirst($element->name);
-                    if (method_exists($object, $setter)) {
-                        $tag = $object->getClass()->getFieldDefinition($element->name);
-                        if($class instanceof Model\Object\ClassDefinition\Data\Fieldcollections){
+                $class = $object->getClass();
+
+                $setter = "set" . ucfirst($element->name);
+                if (method_exists($object, $setter)) {
+                    $tag = $object->getClass()->getFieldDefinition($element->name);
+                    if($tag) {
+                        if ($class instanceof Model\Object\ClassDefinition\Data\Fieldcollections) {
                             $object->$setter($tag->getFromWebserviceImport($element->fieldcollection, $object,
-                                                                                        $idMapper));
+                                $idMapper));
                         } else {
                             $object->$setter($tag->getFromWebserviceImport($element->value, $object, $idMapper));
                         }
-
-                        
                     } else {
-                        if(!$disableMappingExceptions) {
-                            throw new \Exception("No element [ " . $element->name . " ] of type [ " . $element->type . " ] found in class definition " . $class);
-                        }
+                        \Logger::error("tag for field " . $element->name . " not found");
                     }
+
                 } else {
                     if(!$disableMappingExceptions) {
-                        throw new \Exception("Unable to reverse map element [ " . $element->name . " ] of type [ " . $element->type . " ]. Object\\ClassDefinition\\Data type not found. ");
+                        throw new \Exception("No element [ " . $element->name . " ] of type [ " . $element->type . " ] found in class definition " . $class);
                     }
                 }
+
             }
         }
     }

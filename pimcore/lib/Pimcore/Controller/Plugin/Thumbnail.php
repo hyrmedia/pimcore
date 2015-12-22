@@ -1,21 +1,19 @@
-<?php 
+<?php
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Plugin;
 
 use Pimcore\Model\Asset;
+use Pimcore\Model\Tool\TmpStore;
 
 class Thumbnail extends \Zend_Controller_Plugin_Abstract {
 
@@ -33,28 +31,33 @@ class Thumbnail extends \Zend_Controller_Plugin_Abstract {
 
             if($asset = Asset::getById($assetId)) {
                 try {
-
+                    $page = 1;
+                    $thumbnailFile = null;
                     $thumbnailConfig = null;
-                    $deferredConfig = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/thumb_" . $assetId . "__" . md5($request->getPathInfo()) . ".deferred.config";
-                    if(file_exists($deferredConfig)) {
-                        $thumbnailConfig = unserialize(file_get_contents($deferredConfig));
-                        @unlink($deferredConfig); // cleanup, this isn't needed anymore
+                    $deferredConfigId = "thumb_" . $assetId . "__" . md5($request->getPathInfo());
+                    if($thumbnailConfigItem = TmpStore::get($deferredConfigId)) {
+                        $thumbnailConfig = $thumbnailConfigItem->getData();
+                        TmpStore::delete($deferredConfigId);
+
                         if(!$thumbnailConfig instanceof Asset\Image\Thumbnail\Config) {
                             throw new \Exception("Deferred thumbnail config file doesn't contain a valid \\Asset\\Image\\Thumbnail\\Config object");
                         }
-                    } else {
-                        // just check if the thumbnail exists -> throws exception otherwise
-                        $thumbnailConfig = Asset\Image\Thumbnail\Config::getByName($thumbnailName);
-                    }
-
-                    if($asset instanceof Asset\Document) {
-                        $page = 1;
 
                         $tmpPage = array_pop(explode("-", $thumbnailName));
                         if(is_numeric($tmpPage)) {
                             $page = $tmpPage;
                         }
+                    } else {
+                        //get thumbnail for e.g. pdf page thumb__document_pdfPage-5
+                        if(preg_match("|document_(.*)\-(\d+)$|",$thumbnailName,$matchesThumbs)){
+                            $thumbnailName = $matchesThumbs[1];
+                            $page = (int)$matchesThumbs[2];
+                        }
+                        // just check if the thumbnail exists -> throws exception otherwise
+                        $thumbnailConfig = Asset\Image\Thumbnail\Config::getByName($thumbnailName);
+                    }
 
+                    if($asset instanceof Asset\Document) {
                         $thumbnailConfig->setName(preg_replace("/\-[\d]+/","",$thumbnailConfig->getName()));
                         $thumbnailConfig->setName(str_replace("document_","",$thumbnailConfig->getName()));
 
@@ -69,18 +72,21 @@ class Thumbnail extends \Zend_Controller_Plugin_Abstract {
                         $thumbnailFile = PIMCORE_DOCUMENT_ROOT . $asset->getThumbnail($thumbnailConfig);
                     }
 
-                    $imageContent = file_get_contents($thumbnailFile);
-                    $fileExtension = \Pimcore\File::getFileExtension($thumbnailFile);
-                    if(in_array($fileExtension, array("gif","jpeg","jpeg","png","pjpeg"))) {
-                        header("Content-Type: image/".$fileExtension, true);
-                    } else {
-                        header("Content-Type: " . $asset->getMimetype(), true);
+                    if($thumbnailFile && file_exists($thumbnailFile)) {
+                        $fileExtension = \Pimcore\File::getFileExtension($thumbnailFile);
+                        if(in_array($fileExtension, array("gif","jpeg","jpeg","png","pjpeg"))) {
+                            header("Content-Type: image/".$fileExtension, true);
+                        } else {
+                            header("Content-Type: " . $asset->getMimetype(), true);
+                        }
+
+                        header("Content-Length: " . filesize($thumbnailFile), true);
+                        while (@ob_end_flush()) ;
+                        flush();
+
+                        readfile($thumbnailFile);
+                        exit;
                     }
-
-                    header("Content-Length: " . filesize($thumbnailFile), true);
-                    echo $imageContent;
-                    exit;
-
                 } catch (\Exception $e) {
                     // nothing to do
                     \Logger::error("Thumbnail with name '" . $thumbnailName . "' doesn't exist");
@@ -95,6 +101,10 @@ class Thumbnail extends \Zend_Controller_Plugin_Abstract {
     public function dispatchLoopShutdown() {
 
         if(!Asset\Image\Thumbnail::isPictureElementInUse()) {
+            return;
+        }
+
+        if(!Asset\Image\Thumbnail::getEmbedPicturePolyfill()) {
             return;
         }
 

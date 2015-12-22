@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.settings.translations");
@@ -31,7 +28,7 @@ pimcore.settings.translations = Class.create({
                 "keydown" : function (field, key) {
                     if (key.getKey() == key.ENTER) {
                         var input = field;
-                        this.store.baseParams.filter = input.getValue();
+                        this.store.baseParams.searchString = input.getValue();
                         this.store.load();
                     }
                 }.bind(this)
@@ -210,7 +207,7 @@ pimcore.settings.translations = Class.create({
             remoteSort: true,
             baseParams: {
                 limit: itemsPerPage,
-                filter: this.preconfiguredFilter
+                searchString: this.preconfiguredFilter
             },
             listeners: {
                 write : function(store, action, result, response, rs) {
@@ -254,6 +251,19 @@ pimcore.settings.translations = Class.create({
         }));
 
 
+        // filters
+        this.gridFilters = new Ext.ux.grid.GridFilters({
+            encode: true,
+            local: false,
+            filters: [{
+                type: "date",
+                dataIndex: "creationDate"
+            },{
+                type: "date",
+                dataIndex: "modificationDate"
+            }
+            ]
+        });
 
         this.grid = new Ext.grid.EditorGridPanel({
             frame: false,
@@ -261,6 +271,7 @@ pimcore.settings.translations = Class.create({
             store: this.store,
             columnLines: true,
             stripeRows: true,
+            plugins: [this.gridFilters],
             columns : typesColumns,
             trackMouseOver: true,
             bbar: this.pagingtoolbar,
@@ -342,19 +353,21 @@ pimcore.settings.translations = Class.create({
         this.store.reload();
     },
 
-
     doExport:function(){
 
-        if(this.filterField.getValue()) {
+        var filtersActive = this.filterField.getValue() || this.gridFilters.getFilterData().length;
+        if(filtersActive) {
             Ext.MessageBox.confirm("", t("filter_active_message"), function (buttonValue) {
                 if (buttonValue == "yes") {
-                    window.open(Ext.urlAppend(this.exportUrl, "filter=" + this.filterField.getValue()));
+                    var queryString = "searchString=" + this.filterField.getValue();
+                    queryString += "&" + Ext.urlEncode(this.gridFilters.buildQuery(this.gridFilters.getFilterData()));
+                    pimcore.helpers.download(Ext.urlAppend(this.exportUrl, queryString));
                 } else {
-                    window.open(this.exportUrl);
+                    pimcore.helpers.download(this.exportUrl);
                 }
             }.bind(this));
         } else {
-            window.open(this.exportUrl);
+            pimcore.helpers.download(this.exportUrl);
         }
     },
 

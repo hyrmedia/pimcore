@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Asset
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Asset\Image\Thumbnail;
@@ -522,7 +519,7 @@ class Config {
         }
 
         // set name
-        $hash = md5(Serialize::serialize($config));
+        $hash = md5(Serialize::serialize($pipe));
         $pipe->setName("auto_" . $hash);
 
         return $pipe;
@@ -538,25 +535,14 @@ class Config {
     public static function getByLegacyConfig ($config) {
 
         $pipe = new self();
-        $hash = md5(Serialize::serialize($config));
-        $pipe->setName("auto_" . $hash);
 
         if(isset($config["format"])) {
             $pipe->setFormat($config["format"]);
         }
+
         if(isset($config["quality"])) {
             $pipe->setQuality($config["quality"]);
         }
-        /*if ($config["cropPercent"]) {
-            $pipe->addItem("cropPercent", array(
-                "width" => $config["cropWidth"],
-                "height" => $config["cropHeight"],
-                "y" => $config["cropTop"],
-                "x" => $config["cropLeft"]
-            ));
-        }*/
-
-
 
         if (isset($config["cover"])) {
             $pipe->addItem("cover", array(
@@ -616,6 +602,9 @@ class Config {
         if(isset($config["highResolution"])) {
             $pipe->setHighResolution($config["highResolution"]);
         }
+
+        $hash = md5(Serialize::serialize($pipe));
+        $pipe->setName("auto_" . $hash);
 
         return $pipe;
     }

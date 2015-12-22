@@ -2,25 +2,22 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Asset
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Asset\Video\Thumbnail;
 
 use Pimcore\File; 
-use Pimcore\Tool\Serialize;
 use Pimcore\Tool\Console;
 use Pimcore\Model;
+use Pimcore\Model\Tool\TmpStore;
 
 class Processor {
 
@@ -80,7 +77,7 @@ class Processor {
         $existingFormats = array();
         if(is_array($customSetting) && array_key_exists($config->getName(), $customSetting)) {
             if ($customSetting[$config->getName()]["status"] == "inprogress") {
-                if(is_file($instance->getJobFile($customSetting[$config->getName()]["processId"]))) {
+                if(TmpStore::get($instance->getJobStoreId($customSetting[$config->getName()]["processId"]))) {
                     return;
                 }
             } else if($customSetting[$config->getName()]["status"] == "finished") {
@@ -176,7 +173,10 @@ class Processor {
     public static function execute ($processId) {
         $instance = new self();
         $instance->setProcessId($processId);
-        $instance = Serialize::unserialize(file_get_contents($instance->getJobFile()));
+
+        $instanceItem = TmpStore::get($instance->getJobStoreId($processId));
+        $instance = $instanceItem->getData();
+
         $formats = array();
         $overallStatus = array();
         $conversionStatus = "finished";
@@ -246,7 +246,7 @@ class Processor {
             $asset->save();
         }
 
-        @unlink($instance->getJobFile());
+        TmpStore::delete($instance->getJobStoreId());
     }
 
     /**
@@ -258,8 +258,10 @@ class Processor {
         $instance = new self();
         $instance->setProcessId($processId);
 
-        if(is_file($instance->getJobFile())) {
-            $i = Serialize::unserialize(file_get_contents($instance->getJobFile()));
+        $instanceItem = TmpStore::get($instance->getJobStoreId());
+
+        if($instanceItem) {
+            $i = $instanceItem->getData();
             if($i instanceof Processor) {
                 $instance = $i;
             }
@@ -281,18 +283,19 @@ class Processor {
      * @return bool
      */
     public function save() {
-        File::put($this->getJobFile(), Serialize::serialize($this));
+        TmpStore::add($this->getJobStoreId(), $this, "video-job");
         return true;
     }
 
     /**
+     * @param $processId
      * @return string
      */
-    protected function getJobFile ($processId = null) {
+    protected function getJobStoreId($processId = null) {
         if(!$processId) {
             $processId = $this->getProcessId();
         }
-        return PIMCORE_SYSTEM_TEMP_DIRECTORY . "/video-job-" . $processId . ".psf";
+        return "video-job-" . $processId;
     }
 
     /**

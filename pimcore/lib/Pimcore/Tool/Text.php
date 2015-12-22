@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Tool;
@@ -92,14 +89,14 @@ class Text
                         preg_match("/height=\"([^\"]+)*\"/", $oldTag, $heightAttr);
                         preg_match("/style=\"([^\"]+)*\"/", $oldTag, $styleAttr);
 
-                        if ($widthAttr[1] || $heightAttr[1]) {
+                        if ((isset($widthAttr[1]) && $widthAttr[1]) || (isset($heightAttr[1]) && $heightAttr[1])) {
                             $config = array(
                                 "width" => intval($widthAttr[1]),
                                 "height" => intval($heightAttr[1])
                             );
                         }
 
-                        if ($styleAttr[1] && preg_match("/(width|height)/",$styleAttr[1])) {
+                        if (isset($styleAttr[1]) && $styleAttr[1] && preg_match("/(width|height)/",$styleAttr[1])) {
 
                             $config = array(); // reset the config if it was set already before (attributes)
 

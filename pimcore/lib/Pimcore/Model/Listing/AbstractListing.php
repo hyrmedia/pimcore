@@ -2,22 +2,26 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Listing;
 
 use Pimcore\Model\AbstractModel;
-use Pimcore\Resource;
+use Pimcore\Db;
 
+
+/**
+ * Class AbstractListing
+ *
+ * @package Pimcore\Model\Listing
+ * @method \Zend_Db_Select getQuery()
+ */
 abstract class AbstractListing extends AbstractModel {
 
     /**
@@ -190,9 +194,11 @@ abstract class AbstractListing extends AbstractModel {
      * @return $this
      */
     public function addConditionParam($key, $value = null, $concatenator = 'AND'){
-        if(!is_null($value)){
-            $this->conditionParams[$key] = array('value' => $value,'concatenator' => $concatenator);
-        }
+        $this->conditionParams[$key] = [
+            'value' => $value,
+            'concatenator' => $concatenator,
+            'ignore-value' => (strpos($key, '?') === FALSE), // If there is not a placeholder, ignore value!
+        ];
         return $this;
     }
 
@@ -229,14 +235,15 @@ abstract class AbstractListing extends AbstractModel {
                     $conditionString .= ' ' . $value['concatenator'] . ' ' . $key . ' ';
                 }
 
-                /* check value because of calls like
-                 *
-                 * if($key = $this->_getParam('key')){
-                 *   $list->addConditionParam(" `key` LIKE " . Pimcore_Resource::get()->quote("%" . $key . "%"),'');
-                 * }
-                 */
-                if($value['value'] != ''){
-                    $params[] = $value['value'];
+                // If there is not a placeholder, ignore value!
+                if(!$value['ignore-value']){
+                    if(is_array($value['value'])){
+                        foreach($value['value'] as $v){
+                            $params[] = $v;
+                        }
+                    }else{
+                        $params[] = $value['value'];
+                    }
                 }
                 $i++;
             }
@@ -248,7 +255,7 @@ abstract class AbstractListing extends AbstractModel {
 
     /**
      * @param string $condition
-     * @return void
+     * @return $this
      */
     public function setCondition($condition, $conditionVariables = null) {
         $this->condition = $condition;
@@ -284,8 +291,8 @@ abstract class AbstractListing extends AbstractModel {
     public function setGroupBy($groupBy, $qoute = true) {
         if($groupBy) {
             $this->groupBy = $groupBy;
-    
-            if ($qoute) {
+
+            if ($qoute && strpos($groupBy, "`") !== 0) {
                 $this->groupBy = "`" . $this->groupBy . "`";
             }
         }
@@ -303,10 +310,10 @@ abstract class AbstractListing extends AbstractModel {
 
     /**
      * @param  $value
-     * @return void
+     * @return string
      */
     public function quote ($value, $type = null) {
-        $db = Resource::get();
+        $db = Db::get();
         return $db->quote($value, $type);
     }
 

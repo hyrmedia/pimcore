@@ -2,16 +2,15 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
+
+chdir(__DIR__);
 
 include("startup.php");
 
@@ -24,10 +23,6 @@ $paths = array(
 $output = PIMCORE_WEBSITE_VAR . "/compatibility-2.x-stubs.php";
 
 $excludePatterns = [
-    "/^Google_/",
-    "/^Zend_/",
-    "/^Hybrid/",
-    "/^lessc/",
     "/^Csv/",
 ];
 
@@ -47,7 +42,7 @@ foreach ($paths as $path) {
         //iterator_apply($l, 'createMap', array($l, $map));
 
         foreach ($l as $file) {
-            $filename  = str_replace(PIMCORE_DOCUMENT_ROOT, "\$pdr . '", $file->getRealpath());
+            $filename  = $file->getRealpath();
 
             // Windows portability
             $filename  = str_replace(DIRECTORY_SEPARATOR, "/", $filename);
@@ -75,7 +70,21 @@ $globalMap = (array) $globalMap;
 
 $content = '<' . "?" . "php \n\n";
 
+$processedClasses = [];
+
 foreach($globalMap as $class => $file) {
+
+    $contents = file_get_contents($file);
+    $definition = "";
+    if(strpos($contents, "abstract class")) {
+        $definition = "abstract class";
+    } else if (strpos($contents, "class ")) {
+        $definition = "class";
+    } else if (strpos($contents, "interface ")) {
+        $definition = "interface";
+    } else {
+        continue;
+    }
 
     $alias = str_replace("\\", "_", $class);
     $alias = preg_replace("/_Abstract(.*)/", "_Abstract", $alias);
@@ -90,11 +99,14 @@ foreach($globalMap as $class => $file) {
         }
     }
 
-    if($class != $alias) {
-        $line = "class " . $alias . " extends \\" . $class . " {} \n";
+    $line = "";
+    if($class != $alias && !in_array($alias, $processedClasses)) {
+        $line = $definition . " " . $alias . " extends \\" . $class . " {} \n";
     }
 
     $content .= $line;
+
+    $processedClasses[] = $alias;
 }
 
 // Write the contents to disk

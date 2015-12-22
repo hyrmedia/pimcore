@@ -2,20 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
-include("startup.php");
+chdir(__DIR__);
 
-
+include("../config/startup.php");
 
 try {
     $opts = new \Zend_Console_Getopt(array(
@@ -50,17 +47,6 @@ if($opts->getOption("core")) {
     $output = PIMCORE_PATH . "/config/autoload-classmap.php";
 
     $excludePatterns = [
-        "/^Google_/",
-        "/^Zend_Service/", "/^Zend_Gdata/", "/^Zend_Pdf/",
-        "/^Zend_Tool/", "/^Zend_CodeGenerator/",
-        "/^Zend_Ldap/", "/^Zend_Amf/", "/^Zend_Dojo/",
-        "/^Zend_Wildfire/", "/^Zend_Soap/", "/^Zend_XmlRpc/",
-        "/^Zend_Reflection/", "/^Zend_Cloud/", "/^Zend_Mobile/",
-        "/^Zend_Feed/", "/^Zend_Test/", "/^Zend_Barcode/", "/^Zend_Search/",
-        "/^Zend_Queue/", "/^Zend_Oauth/", "/^Zend_Application/",
-        "/^Zend_Measure/", "/^Zend_OpenId/",
-        "/^Hybrid/",
-        "/^lessc/",
         "/^Csv/",
     ];
 

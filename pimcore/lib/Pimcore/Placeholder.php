@@ -2,20 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore;
 
-use Pimcore\Model\Document;
+use Pimcore\Model;
 
 class Placeholder
 {
@@ -39,12 +36,12 @@ class Placeholder
      *
      * @var string
      */
-    protected static $placeholderClassPrefixes = ['Pimcore_Placeholder_', 'Website_Placeholder_', "\\Pimcore\\Placeholder\\"];
+    protected static $placeholderClassPrefixes = ['Pimcore_Placeholder_', 'Website_Placeholder_', "\\Pimcore\\Placeholder\\","\\Website\\Placeholder\\"];
 
     /**
      * Contains the document object
      *
-     * @var Document | null
+     * @var Model\Document | null
      */
     protected $document;
 
@@ -164,7 +161,7 @@ class Placeholder
      *
      * @param string $contentString
      * @param null | array $params
-     * @param null | Document $document
+     * @param null | Model\Document $document
      * @return array
      */
     public function detectPlaceholders($contentString, $params, $document = null)
@@ -212,19 +209,19 @@ class Placeholder
     /**
      * Helper to simply replace the placeholders with their value
      *
-     * @param string | Document $mixed
+     * @param string | Model\Document $mixed
      * @param array $params
-     * @param null | Document $document
+     * @param null | Model\Document $document
      * @return string
      */
     public function replacePlaceholders($mixed, $params = array(), $document = null,$enableLayoutOnPlaceholderReplacement = true)
     {
         if (is_string($mixed)) {
             $contentString = $mixed;
-        } elseif ($mixed instanceof Document) {
-            $contentString = Document\Service::render($mixed, $params, $enableLayoutOnPlaceholderReplacement);
+        } elseif ($mixed instanceof Model\Document) {
+            $contentString = Model\Document\Service::render($mixed, $params, $enableLayoutOnPlaceholderReplacement);
         }
-        if ($document instanceof Document === false) {
+        if ($document instanceof Model\Document === false) {
             $document = null;
         }
 

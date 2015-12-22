@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Image\Adapter;
@@ -33,7 +30,7 @@ class Imagick extends Adapter {
     protected static $CMYKColorProfile;
 
     /**
-     * @var Imagick
+     * @var \Imagick
      */
     protected $resource;
 
@@ -53,6 +50,8 @@ class Imagick extends Adapter {
         if(preg_match("@^https?://@", $imagePath)) {
             $tmpFilename = "imagick_auto_download_" . md5($imagePath) . "." . File::getFileExtension($imagePath);
             $tmpFilePath = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/" . $tmpFilename;
+
+            $this->tmpFiles[] = $tmpFilePath;
 
             File::put($tmpFilePath, \Pimcore\Tool::getHttpData($imagePath));
             $imagePath = $tmpFilePath;
@@ -80,7 +79,12 @@ class Imagick extends Adapter {
                 $i->setResolution($options["resolution"]["x"], $options["resolution"]["y"]);
             }
 
-            if(!$i->readImage($imagePath) || !filesize($imagePath)) {
+            $imagePathLoad = $imagePath;
+            if(!defined("HHVM_VERSION")) {
+                $imagePathLoad .= "[0]"; // not supported by HHVM implementation - selects the first layer/page in layered/pages file formats
+            }
+
+            if(!$i->readImage($imagePathLoad) || !filesize($imagePath)) {
                 return false;
             }
 
@@ -129,7 +133,7 @@ class Imagick extends Adapter {
         $format = strtolower($format);
 
         if($format == "png") {
-            // we need to force imagich to create png32 images, otherwise this can cause some strange effects
+            // we need to force imagick to create png32 images, otherwise this can cause some strange effects
             // when used with gray-scale images
             $format = "png32";
         }
@@ -159,25 +163,49 @@ class Imagick extends Adapter {
             $i->setCompression(\Imagick::COMPRESSION_LZW);
         }
 
-        if(defined("HHVM_VERSION")) {
-            $i->writeImage($path);
-        } else {
-            $i->writeImage($format . ":" . $path);
+        // force progressive JPEG if filesize >= 10k
+        // normally jpeg images are bigger than 10k so we avoid the double compression (baseline => filesize check => if necessary progressive)
+        // and check the dimensions here instead to faster generate the image
+        // progressive JPEG - better compression, smaller filesize, especially for web optimization
+        if($format == "jpeg") {
+            if( ($this->getWidth() * $this->getHeight()) > 35000) {
+                $i->setInterlaceScheme(\Imagick::INTERLACE_PLANE);
+            }
         }
 
-        // force progressive JPEG if filesize >= 10k
-        // better compression, smaller filesize, especially for web optimization
-        if($format == "jpeg") {
-            if(filesize($path) >= 10240) {
-                $i->setinterlacescheme(\Imagick::INTERLACE_PLANE);
-                if(!$i->writeImage($path)) {
-                    throw new \Exception("Unable to write image: " , $path);
-                }
-            }
+        if(defined("HHVM_VERSION")) {
+            $success = $i->writeImage($path);
+        } else {
+            $success = $i->writeImage($format . ":" . $path);
+        }
+
+        if(!$success) {
+            throw new \Exception("Unable to write image: " , $path);
         }
 
         return $this;
     }
+
+    /**
+     * @return $this
+     */
+    // @TODO: Needs further testing => speed improvement especially with bigger images
+    /*protected function reinitializeImage() {
+
+        $i = $this->resource;
+
+        $i->writeImage("mpr:temp");
+        $this->destroy();
+
+        $i = new \Imagick();
+        $i->readImage("mpr:temp");
+
+        $this->resource = $i;
+
+        $this->modified = false;
+
+        return $this;
+    }*/
 
     /**
      * @return  void
@@ -241,16 +269,34 @@ class Imagick extends Adapter {
             $this->resource->setImageColorspace(\Imagick::COLORSPACE_SRGB);
         } else if (!in_array($imageColorspace, array(\Imagick::COLORSPACE_RGB, \Imagick::COLORSPACE_SRGB))) {
             $this->resource->setImageColorspace(\Imagick::COLORSPACE_SRGB);
+        } else {
+            // this is to handle embedded icc profiles in the RGB/sRGB colorspace
+            $profiles = $this->resource->getImageProfiles('*', false);
+            $has_icc_profile = (array_search('icc', $profiles) !== false);
+            if($has_icc_profile) {
+                try {
+                    // if getImageColorspace() says SRGB but the embedded icc profile is CMYK profileImage() will throw an exception
+                    $this->resource->profileImage('icc', self::getRGBColorProfile());
+                } catch (\Exception $e) {
+                    \Logger::warn($e);
+                }
+            }
         }
+
         // this is a HACK to force grayscale images to be real RGB - truecolor, this is important if you want to use
         // thumbnails in PDF's because they do not support "real" grayscale JPEGs or PNGs
         // problem is described here: http://imagemagick.org/Usage/basics/#type
         // and here: http://www.imagemagick.org/discourse-server/viewtopic.php?f=2&t=6888#p31891
+        $currentLocale = setlocale(LC_ALL,"0"); // this locale hack thing is also a hack for imagick
+        setlocale(LC_ALL,"en"); // Set locale to "en" for ImagickDraw::point() to ensure the involved tostring() methods keep the decimal point
+
         $draw = new \ImagickDraw();
         $draw->setFillColor("#ff0000");
         $draw->setfillopacity(.01);
         $draw->point(floor($this->getWidth()/2),floor($this->getHeight()/2)); // place it in the middle of the image
         $this->resource->drawImage($draw);
+
+        setlocale(LC_ALL, $currentLocale); // see setlocale() above, for details ;-)
 
         return $this;
     }
@@ -534,9 +580,6 @@ class Imagick extends Adapter {
 
         $this->preModify();
 
-        $image = ltrim($image,"/");
-        $image = PIMCORE_DOCUMENT_ROOT . "/" . $image;
-
         // 100 alpha is default
         if(empty($alpha)) {
             $alpha = 100;
@@ -548,10 +591,20 @@ class Imagick extends Adapter {
             $composite = "COMPOSITE_DEFAULT";
         }
 
-        if(is_file($image)) {
+        $newImage = null;
+
+        if(is_string($image)) {
+
+            $image = ltrim($image,"/");
+            $image = PIMCORE_DOCUMENT_ROOT . "/" . $image;
+
             $newImage = new \Imagick();
             $newImage->readimage($image);
+        } else if ($image instanceof \Imagick) {
+            $newImage = $image;
+        }
 
+        if($newImage) {
             if($origin == 'top-right') {
                 $x = $this->resource->getImageWidth() - $newImage->getImageWidth() - $x;
             } elseif($origin == 'bottom-left') {
@@ -573,6 +626,24 @@ class Imagick extends Adapter {
         return $this;
     }
 
+    /**
+     * @param $image
+     * @param string $composite
+     * @return $this
+     */
+    public function addOverlayFit($image, $composite = "COMPOSITE_DEFAULT") {
+
+        $image = ltrim($image,"/");
+        $image = PIMCORE_DOCUMENT_ROOT . "/" . $image;
+
+        $newImage = new \Imagick();
+        $newImage->readimage($image);
+        $newImage->resizeimage($this->getWidth(), $this->getHeight(), \Imagick::FILTER_UNDEFINED, 1, false);
+
+        $this->addOverlay($newImage, 0, 0, 100, $composite);
+
+        return $this;
+    }
 
     /**
      * @param  $image
@@ -642,6 +713,33 @@ class Imagick extends Adapter {
     }
 
     /**
+     * @param int $radius
+     * @param float $sigma
+     * @return $this|Adapter
+     */
+    public function gaussianBlur($radius = 0, $sigma = 1.0) {
+        $this->preModify();
+        $this->resource->gaussianBlurImage($radius, $sigma);
+        $this->postModify();
+
+        return $this;
+    }
+
+    /**
+     * @param int $brightness
+     * @param int $saturation
+     * @param int $hue
+     * @return $this
+     */
+    public function brightnessSaturation($brightness = 100, $saturation = 100, $hue = 100) {
+        $this->preModify();
+        $this->resource->modulateImage($brightness, $saturation, $hue);
+        $this->postModify();
+
+        return $this;
+    }
+
+    /**
      * @param $mode
      * @return $this|Adapter
      */
@@ -672,9 +770,9 @@ class Imagick extends Adapter {
         } else {
             try {
                 $type = $this->resource->getimageformat();
-                $vectorTypes = array("EPT","EPDF","EPI","EPS","EPS2","EPS3","EPSF","EPSI","EPT","PDF","PFA","PFB","PFM","PS","PS2","PS3","SVG","SVGZ");
+                $vectorTypes = array("EPT","EPDF","EPI","EPS","EPS2","EPS3","EPSF","EPSI","EPT","PDF","PFA","PFB","PFM","PS","PS2","PS3","SVG","SVGZ","MVG");
 
-                if(in_array($type,$vectorTypes)) {
+                if(in_array(strtoupper($type),$vectorTypes)) {
                     return true;
                 }
             } catch (\Exception $e) {

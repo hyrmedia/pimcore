@@ -1,0 +1,20 @@
+
+# remove this for your own development
+/website/
+/tools/
+/plugins/
+
+# tests
+/tests/output/*
+/tests/tmp/*
+
+# composer
+/composer.phar
+/composer.lock
+/vendor/*
+!/vendor/.dummy
+
+# PhpStorm / IDEA
+.idea
+# NetBeans
+nbproject

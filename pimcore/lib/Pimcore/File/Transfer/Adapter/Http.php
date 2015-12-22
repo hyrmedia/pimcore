@@ -2,33 +2,21 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
-namespace Pimcore\FIle\Transfer\Adapter;
+namespace Pimcore\File\Transfer\Adapter;
 
 use Pimcore\File;
 
 class Http extends \Zend_File_Transfer_Adapter_Http {
 
-    /**
-     * @var null
-     */
-    protected $sourceFile = null;
-
-    /**
-     * @var null
-     */
-    protected $destinationFile = null;
-
+    use \Pimcore\File\Transfer\Adapter\AdapterTrait;
     /**
      * @var null
      */
@@ -46,36 +34,6 @@ class Http extends \Zend_File_Transfer_Adapter_Http {
      */
     public function getHttpClient(){
         return $this->httpClient;
-    }
-
-    /**
-     * @param $sourceFile
-     * @return $this
-     */
-    public function setSourceFile($sourceFile){
-        $this->sourceFile = $sourceFile;
-        return $this;
-    }
-
-    /**
-     * @return null
-     */
-    public function getSourceFile(){
-        return $this->sourceFile;
-    }
-
-    /**
-     * @param $destinationFile
-     */
-    public function setDestinationFile($destinationFile){
-        $this->destinationFile  = $destinationFile;
-    }
-
-    /**
-     * @return null
-     */
-    public function getDestinationFile(){
-        return $this->destinationFile;
     }
 
     /**

@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Object|Class
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Object\ClassDefinition\Data;
@@ -275,7 +272,6 @@ class Table extends Model\Object\ClassDefinition\Data {
         if (is_array($data)) {
             return base64_encode(Serialize::serialize($data));
         } else return null;
-
     }
 
     /**
@@ -285,12 +281,31 @@ class Table extends Model\Object\ClassDefinition\Data {
     public function getFromCsvImport($importValue) {
 
        $value = Serialize::unserialize(base64_decode($importValue));
-        \Logger::log("table data");
-        \Logger::log($value);
         if (is_array($value)) {
             return $value;
         } else return null;
 
+    }
+
+    /**
+     * @param $object
+     * @return string
+     */
+    public function getDataForSearchIndex($object) {
+        $data = $this->getDataFromObjectParam($object);
+
+        if (!empty($data)) {
+            $tmpLine = array();
+            if (is_array($data)) {
+                foreach ($data as $row) {
+                    if (is_array($row)) {
+                        $tmpLine[] = implode(" ", $row);
+                    }
+                }
+            }
+            return implode("\n", $tmpLine);
+        }
+        return "";
     }
 
     /** True if change is allowed in edit mode.
@@ -346,6 +361,7 @@ class Table extends Model\Object\ClassDefinition\Data {
             $result = array();
             foreach ($value as $item) {
                 $item = (array) $item;
+                $item = array_values($item);
                 $result[] = $item;
             }
 

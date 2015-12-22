@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Schedule
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Schedule\Task;
@@ -47,11 +44,11 @@ class Executor {
                                     $document->setPublished(true);
                                     $document->save();
                                 } else {
-                                    \Logger::err("\\Schedule\\Task\\Executor: Could not restore document from version data.");
+                                    \Logger::err("Schedule\\Task\\Executor: Could not restore document from version data.");
                                 }
 
                             } catch(\Exception $e){
-                                \Logger::err("\\Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
+                                \Logger::err("Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
                             }
 
                         }
@@ -80,11 +77,11 @@ class Executor {
                                 if($asset instanceof Asset){
                                     $asset->save();
                                 } else {
-                                    \Logger::err("\\Schedule\\Task\\Executor: Could not restore asset from version data.");
+                                    \Logger::err("Schedule\\Task\\Executor: Could not restore asset from version data.");
                                 }
 
                             } catch(\Exception $e){
-                                \Logger::err("\\Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
+                                \Logger::err("Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
                             }
                         }
                         else if ($task->getAction() == "delete") {
@@ -105,11 +102,11 @@ class Executor {
                                     $object->setPublished(true);
                                     $object->save();
                                 } else {
-                                    \Logger::err("\\Schedule\\Task\\Executor: Could not restore object from version data.");
+                                    \Logger::err("Schedule\\Task\\Executor: Could not restore object from version data.");
                                 }
 
                             } catch(\Exception $e){
-                                \Logger::err("\\Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
+                                \Logger::err("Schedule\\Task\\Executor: Version [ ".$task->getVersion()." ] does not exist.");
                             }
                         }
                         else if ($task->getAction() == "publish") {

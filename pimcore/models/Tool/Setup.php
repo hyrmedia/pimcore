@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Tool
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Tool;
@@ -36,6 +33,10 @@ class Setup extends Model\AbstractModel {
 				$configTemplate = new \Zend_Config_Xml($configTemplatePath);
 				if($configTemplate->general) { // check if the template contains a valid configuration
 					$settings = $configTemplate->toArray();
+
+					// unset database configuration
+					unset($settings["database"]["params"]["host"]);
+					unset($settings["database"]["params"]["port"]);
 				}
 			} catch (\Exception $e) {
 				
@@ -52,16 +53,15 @@ class Setup extends Model\AbstractModel {
 					"validLanguages" => "en",
 					"debug" => "1",
 					"debugloglevel" => "debug",
-					"custom_php_logfile" => "1"
+					"custom_php_logfile" => "1",
+                    "extjs6" => "1",
 				),
 				"database" => array(
 					"adapter" => "Mysqli",
 					"params" => array(
-						"host" => "localhost",
 						"username" => "root",
 						"password" => "",
 						"dbname" => "",
-						"port" => "3306",
 					)
 				),
 				"documents" => array(
@@ -98,7 +98,10 @@ class Setup extends Model\AbstractModel {
 			);
 		}
 
-        $settings = array_replace_recursive($settings, $config);		
+        $settings = array_replace_recursive($settings, $config);
+
+        // convert all special characters to their entities so the xml writer can put it into the file
+        $settings = array_htmlspecialchars($settings);
 
         // create initial /website/var folder structure
         // @TODO: should use values out of startup.php (Constants)
@@ -119,7 +122,7 @@ class Setup extends Model\AbstractModel {
      *
      */
     public function contents($config = array()) {
-        $this->getResource()->contents();
+        $this->getDao()->contents();
 		$this->createOrUpdateUser($config);
     }
 	

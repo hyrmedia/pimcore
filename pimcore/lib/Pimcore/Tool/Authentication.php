@@ -2,25 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Tool;
 
-use Pimcore\Tool\Authentication as AuthService;
-use Pimcore\Tool\Session;
 use Pimcore\Model\User;
-
-// PHP 5.5 Crypt-API password compatibility layer for PHP version < PHP 5.5
-include_once("password_compatibility.php");
 
 class Authentication {
 
@@ -49,13 +41,18 @@ class Authentication {
      */
     public static function authenticateSession () {
 
+        if(!isset($_COOKIE["pimcore_admin_sid"]) && !isset($_REQUEST["pimcore_admin_sid"])) {
+            // if no session cookie / ID no authentication possible, we don't need to start a session
+            return null;
+        }
+
         $session = Session::getReadOnly();
         $user = $session->user;
         if ($user instanceof User) {
             // renew user
             $user = User::getById($user->getId());
 
-            if(AuthService::isValidUser($user)) {
+            if(self::isValidUser($user)) {
                 return $user;
             }
         }
@@ -102,7 +99,7 @@ class Authentication {
             }
 
             $passwordHash = $user->getPassword();
-            $decrypted = AuthService::tokenDecrypt($passwordHash, $token);
+            $decrypted = self::tokenDecrypt($passwordHash, $token);
 
             $timestamp = $decrypted[0];
             $timeZone = date_default_timezone_get();

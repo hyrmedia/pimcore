@@ -2,22 +2,29 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore;
 
-use Pimcore\Model\Cache;
+use Pimcore\Cache;
 
 class Tool {
+
+    /**
+     * @var array
+     */
+    protected static $notFoundClassNames = [];
+
+    /**
+     * @var array
+     */
+    protected static $validLanguages = [];
 
     /**
      * @static
@@ -26,6 +33,16 @@ class Tool {
      */
     public static function isValidKey($key){
         return (bool) preg_match("/^[a-z0-9_~\.\-]+$/", $key);
+    }
+
+    /**
+     * returns a valid cache key/tag string
+     *
+     * @param string $key
+     * @return string
+     */
+    public static function getValidCacheKey($key){
+        return preg_replace("/[^a-zA-Z0-9]/", "_", $key);
     }
 
     /**
@@ -64,21 +81,25 @@ class Tool {
      */
     public static function getValidLanguages() {
 
-        $config = Config::getSystemConfig();
-        $validLanguages = strval($config->general->validLanguages);
+        if(empty(self::$validLanguages)) {
+            $config = Config::getSystemConfig();
+            $validLanguages = strval($config->general->validLanguages);
 
-        if (empty($validLanguages)) {
-            return array();
+            if (empty($validLanguages)) {
+                return array();
+            }
+
+            $validLanguages = str_replace(" ", "", $validLanguages);
+            $languages = explode(",", $validLanguages);
+
+            if (!is_array($languages)) {
+                $languages = array();
+            }
+
+            self::$validLanguages = $languages;
         }
 
-        $validLanguages = str_replace(" ", "", $validLanguages);
-        $languages = explode(",", $validLanguages);
-
-        if (!is_array($languages)) {
-            $languages = array();
-        }
-
-        return $languages;
+        return self::$validLanguages;
     }
 
     /**
@@ -103,26 +124,46 @@ class Tool {
     }
 
     /**
-     * @return null
+     * @return null|string
      */
     public static function getDefaultLanguage() {
+        $config = Config::getSystemConfig();
+        $defaultLanguage = $config->general->defaultLanguage;
         $languages = self::getValidLanguages();
-        if(!empty($languages)) {
+
+        if (!empty($languages) && in_array($defaultLanguage, $languages)) {
+            return $defaultLanguage;
+        }
+        else if (!empty($languages)) {
             return $languages[0];
         }
+
         return null;
     }
 
     /**
-     * @static
+     * @return array|mixed
+     * @throws \Zend_Locale_Exception
      */
     public static function getSupportedLocales() {
+
+        // List of locales that are no longer part of CLDR
+        // this was also changed in the Zend Framework, but here we need to provide an appropriate alternative
+        // since this information isn't public in \Zend_Locale :-(
+        $aliases = ['az_AZ' => true, 'bs_BA' => true, 'ha_GH' => true, 'ha_NE' => true, 'ha_NG' => true,
+            'kk_KZ' => true, 'ks_IN' => true, 'mn_MN' => true, 'ms_BN' => true, 'ms_MY' => true,
+            'ms_SG' => true, 'pa_IN' => true, 'pa_PK' => true, 'shi_MA' => true, 'sr_BA' => true, 'sr_ME' => true,
+            'sr_RS' => true, 'sr_XK' => true, 'tg_TJ' => true, 'tzm_MA' => true, 'uz_AF' => true, 'uz_UZ' => true,
+            'vai_LR' => true, 'zh_CN' => true, 'zh_HK' => true, 'zh_MO' => true, 'zh_SG' => true, 'zh_TW' => true,];
 
         $locale = \Zend_Locale::findLocale();
         $cacheKey = "system_supported_locales_" . strtolower((string) $locale);
         if(!$languageOptions = Cache::load($cacheKey)) {
             // we use the locale here, because \Zend_Translate only supports locales not "languages"
             $languages = \Zend_Locale::getLocaleList();
+
+            $languages = array_merge($languages, $aliases);
+
             $languageOptions = array();
             foreach ($languages as $code => $active) {
                 if($active) {
@@ -207,7 +248,7 @@ class Tool {
             $systemRoutingDefaults = $config->documents->toArray();
 
             foreach ($routeingDefaults as $key => $value) {
-                if ($systemRoutingDefaults["default_" . $key]) {
+                if (isset($systemRoutingDefaults["default_" . $key]) && $systemRoutingDefaults["default_" . $key]) {
                     $routeingDefaults[$key] = $systemRoutingDefaults["default_" . $key];
                 }
             }
@@ -286,50 +327,63 @@ class Tool {
      * @return string
      */
     public static function getHostname() {
+
         if(isset($_SERVER["HTTP_X_FORWARDED_HOST"]) && !empty($_SERVER["HTTP_X_FORWARDED_HOST"])) {
-            return $_SERVER["HTTP_X_FORWARDED_HOST"];
+            $hostname = $_SERVER["HTTP_X_FORWARDED_HOST"];
+        } else {
+            $hostname = $_SERVER["HTTP_HOST"];
         }
-        return $_SERVER["HTTP_HOST"];
+
+        // remove port if set
+        if(strpos($hostname, ":") !== false) {
+            $hostname = preg_replace("@:[0-9]+@", "", $hostname);
+        }
+
+        return $hostname;
     }
 
 
     /**
      * Returns the host URL
      *
-     * @static
+     * @param string $useProtocol use a specific protocol
+     *
      * @return string
      */
-    public static function getHostUrl()
-        {
-            $protocol = "http";
-            $port = '';
+    public static function getHostUrl($useProtocol = null) {
+        $protocol = "http";
+        $port = '';
 
-            if(isset($_SERVER["SERVER_PROTOCOL"])) {
-                $protocol = strtolower($_SERVER["SERVER_PROTOCOL"]);
-                $protocol = substr($protocol, 0, strpos($protocol, "/"));
-                $protocol .= (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on") ? "s" : "";
-            }
-
-            if(isset($_SERVER["SERVER_PORT"])) {
-                if(!in_array((int) $_SERVER["SERVER_PORT"],array(443,80))){
-                    $port = ":" . $_SERVER["SERVER_PORT"];
-                }
-            }
-
-            $hostname = self::getHostname();
-
-            //get it from System settings
-            if (!$hostname) {
-                $systemConfig = Config::getSystemConfig()->toArray();
-                $hostname = $systemConfig['general']['domain'];
-                if (!$hostname) {
-                    \Logger::warn('Couldn\'t determine HTTP Host. No Domain set in "Settings" -> "System" -> "Website" -> "Domain"');
-                    return "";
-                }
-            }
-
-            return $protocol . "://" . $hostname . $port;
+        if(isset($_SERVER["SERVER_PROTOCOL"])) {
+            $protocol = strtolower($_SERVER["SERVER_PROTOCOL"]);
+            $protocol = substr($protocol, 0, strpos($protocol, "/"));
+            $protocol .= (isset($_SERVER["HTTPS"]) && $_SERVER["HTTPS"] == "on") ? "s" : "";
         }
+
+        if(isset($_SERVER["SERVER_PORT"])) {
+            if(!in_array((int) $_SERVER["SERVER_PORT"],array(443,80))){
+                $port = ":" . $_SERVER["SERVER_PORT"];
+            }
+        }
+
+        $hostname = self::getHostname();
+
+        //get it from System settings
+        if (!$hostname) {
+            $systemConfig = Config::getSystemConfig()->toArray();
+            $hostname = $systemConfig['general']['domain'];
+            if (!$hostname) {
+                \Logger::warn('Couldn\'t determine HTTP Host. No Domain set in "Settings" -> "System" -> "Website" -> "Domain"');
+                return "";
+            }
+        }
+
+        if($useProtocol){
+            $protocol = $useProtocol;
+        }
+
+        return $protocol . "://" . $hostname . $port;
+    }
 
 
     /**
@@ -415,7 +469,7 @@ class Tool {
     /**
      * @param string $type
      * @param array $options
-     * @return mixed
+     * @return \Zend_Http_Client
      * @throws \Exception
      * @throws \Zend_Http_Client_Exception
      */
@@ -501,6 +555,7 @@ class Tool {
 
         $targetClassName = $sourceClassName;
         $lookupName = str_replace(["\\Pimcore\\Model\\", "\\"], ["", "_"], $sourceClassName);
+        $lookupName = ltrim($lookupName, "\\_");
 
         if($map = Config::getModelClassMappingConfig()) {
             $tmpClassName = $map->{$lookupName};
@@ -553,7 +608,7 @@ class Tool {
         }
 
         $ips = explode(",", $ip);
-        $ip = trim(array_pop($ips));
+        $ip = trim(array_shift($ips));
 
         return $ip;
     }
@@ -574,24 +629,7 @@ class Tool {
      * @return bool
      */
     public static function classExists ($class) {
-
-        // we need to set a custom error handler here for the time being
-        // unfortunately suppressNotFoundWarnings() doesn't work all the time, it has something to do with the calls in
-        // Pimcore\Tool::ClassMapAutoloader(), but don't know what actual conditions causes this problem.
-        // but to be save we log the errors into the debug.log, so if anything else happens we can see it there
-        // the normal warning is e.g. Warning: include_once(Path/To/Class.php): failed to open stream: No such file or directory in ...
-        set_error_handler(function ($errno, $errstr, $errfile, $errline) {
-            \Logger::debug(implode(" ", func_get_args()));
-        });
-
-        \Zend_Loader_Autoloader::getInstance()->suppressNotFoundWarnings(true);
-        $class = "\\" . ltrim($class, "\\");
-        $exists = class_exists($class);
-        \Zend_Loader_Autoloader::getInstance()->suppressNotFoundWarnings(false);
-
-        restore_error_handler();
-
-        return $exists;
+        return self::classInterfaceExists($class, "class");
     }
 
     /**
@@ -600,6 +638,29 @@ class Tool {
      * @return bool
      */
     public static function interfaceExists ($class) {
+        return self::classInterfaceExists($class, "interface");
+    }
+
+    /**
+     * @param $class
+     * @param $type
+     * @return bool
+     */
+    protected static function classInterfaceExists($class, $type) {
+
+        $functionName = $type . "_exists";
+
+        // if the class is already loaded we can skip right here
+        if($functionName($class, false)) {
+            return true;
+        }
+
+        $class = "\\" . ltrim($class, "\\");
+
+        // let's test if we have seens this class already before
+        if(isset(self::$notFoundClassNames[$class])) {
+            return false;
+        }
 
         // we need to set a custom error handler here for the time being
         // unfortunately suppressNotFoundWarnings() doesn't work all the time, it has something to do with the calls in
@@ -607,15 +668,18 @@ class Tool {
         // but to be save we log the errors into the debug.log, so if anything else happens we can see it there
         // the normal warning is e.g. Warning: include_once(Path/To/Class.php): failed to open stream: No such file or directory in ...
         set_error_handler(function ($errno, $errstr, $errfile, $errline) {
-            \Logger::debug(implode(" ", func_get_args()));
+            //\Logger::debug(implode(" ", [$errno, $errstr, $errfile, $errline]));
         });
 
         \Zend_Loader_Autoloader::getInstance()->suppressNotFoundWarnings(true);
-        $class = "\\" . ltrim($class, "\\");
-        $exists = interface_exists($class);
+        $exists = $functionName($class);
         \Zend_Loader_Autoloader::getInstance()->suppressNotFoundWarnings(false);
 
         restore_error_handler();
+
+        if(!$exists) {
+            self::$notFoundClassNames[$class] = true; // value doesn't matter, key lookups are faster ;-)
+        }
 
         return $exists;
     }
@@ -624,7 +688,13 @@ class Tool {
      * @param $message
      */
     public static function exitWithError($message) {
-        header('HTTP/1.1 503 Service Temporarily Unavailable');
+
+        while (@ob_end_flush());
+
+        if(php_sapi_name() != "cli") {
+            header('HTTP/1.1 503 Service Temporarily Unavailable');
+        }
+
         die($message);
     }
 

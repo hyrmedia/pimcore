@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Object|Class
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Object\ClassDefinition\Data;
@@ -159,11 +156,18 @@ class Multihref extends Model\Object\ClassDefinition\Data\Relations\AbstractRela
     public function setDocumentTypes($documentTypes)
     {
         // this is the new method with Ext.form.MultiSelect
-        if(is_string($documentTypes) && !empty($documentTypes)) {
-            $parts = explode(",", $documentTypes);
+        if((is_string($documentTypes) && !empty($documentTypes)) || (\Pimcore\Tool\Admin::isExtJS6() && is_array($documentTypes))) {
+            if (!\Pimcore\Tool\Admin::isExtJS6()) {
+                $parts = explode(",", $documentTypes);
+            } else {
+                $parts = $documentTypes;
+            }
+
             $documentTypes = array();
             foreach ($parts as $type) {
-                $documentTypes[] = array("documentTypes" => $type);
+                if($type) {
+                    $documentTypes[] = array("documentTypes" => $type);
+                }
             }
         }
 
@@ -206,11 +210,17 @@ class Multihref extends Model\Object\ClassDefinition\Data\Relations\AbstractRela
     public function setAssetTypes($assetTypes)
     {
         // this is the new method with Ext.form.MultiSelect
-        if(is_string($assetTypes) && !empty($assetTypes)) {
-            $parts = explode(",", $assetTypes);
+        if((is_string($assetTypes) && !empty($assetTypes)) || (\Pimcore\Tool\Admin::isExtJS6() && is_array($assetTypes))) {
+            if (!\Pimcore\Tool\Admin::isExtJS6()) {
+                $parts = explode(",", $assetTypes);
+            } else {
+                $parts = $assetTypes;
+            }
             $assetTypes = array();
             foreach ($parts as $type) {
-                $assetTypes[] = array("assetTypes" => $type);
+                if ($type) {
+                    $assetTypes[] = array("assetTypes" => $type);
+                }
             }
         }
 
@@ -295,7 +305,7 @@ class Multihref extends Model\Object\ClassDefinition\Data\Relations\AbstractRela
         //return null when data is not set
         if (!$data) return null;
 
-        $ids = array();
+        $d = array();
 
         if (is_array($data) && count($data) > 0) {
             foreach ($data as $element) {
@@ -632,6 +642,8 @@ class Multihref extends Model\Object\ClassDefinition\Data\Relations\AbstractRela
                     if ($idMapper) {
                         $id = $idMapper->getMappedId($type, $id);
                     }
+
+                    $e = null;
                     if ($id) {
                         $e = Element\Service::getElementById($type, $id);
                     }

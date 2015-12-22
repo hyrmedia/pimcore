@@ -2,20 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore;
 
-use Pimcore\Model\Cache; 
+use Pimcore\Cache;
 
 class Translate extends \Zend_Translate_Adapter {
 
@@ -102,6 +99,22 @@ class Translate extends \Zend_Translate_Adapter {
 
 
     /**
+     * @param string|\Zend_Locale $locale
+     * @return \Zend_Translate_Adapter
+     * @throws \Zend_Translate_Exception
+     */
+    public function setLocale($locale) {
+
+        // load data before calling the parent
+        $l = (string) $locale;
+        if(empty($this->_translate[$l])) {
+            $this->_loadTranslationData(null,$l);
+        }
+
+        return parent::setLocale($locale);
+    }
+
+    /**
      * @param array|string $messageId
      * @param null $locale
      * @return array|string
@@ -111,6 +124,7 @@ class Translate extends \Zend_Translate_Adapter {
 
         $messageIdOriginal = $messageId;
         $messageId = mb_strtolower($messageId);
+        $messageId = trim($messageId);
 
         // the maximum length of message-id's is 255
         if(strlen($messageId) > 255) {
@@ -119,6 +133,15 @@ class Translate extends \Zend_Translate_Adapter {
 
         if ($locale === null) {
             $locale = $this->_options['locale'];
+        }
+
+        // check if the given locale is available, if not try again just the language without the region
+        if(!Tool::isValidLanguage($locale)) {
+            $originalLocale = new \Zend_Locale((string) $locale);
+            if(Tool::isValidLanguage($originalLocale->getLanguage())) {
+                $locale = $originalLocale->getLanguage();
+                $this->setLocale($locale);
+            }
         }
 
         // list isn't cacheable, just get a single item
@@ -160,6 +183,16 @@ class Translate extends \Zend_Translate_Adapter {
                     }
                 }
             }
+
+            // check if there is a translation in a lower step (without reverting the keys)
+            $tmpKey = $messageId;
+            if(strrpos($tmpKey,':')){
+                while($tmpKey = substr($tmpKey,0,strrpos($tmpKey,':'))){
+                    if (!empty($this->_translate[$locale][$tmpKey])) {
+                        return $this->_translate[$locale][$tmpKey];
+                    }
+                }
+            }
         }
 
         // do not create a new translation if it is only empty, but do not return empty values
@@ -168,6 +201,12 @@ class Translate extends \Zend_Translate_Adapter {
         } else {
             // look for a fallback translation
             foreach(Tool::getFallbackLanguagesFor($locale) as $fallbackLanguage) {
+
+                // check if data for fallback language is loaded, if not force it
+                if(empty($this->_translate[$fallbackLanguage])) {
+                    $this->_loadTranslationData(null,$fallbackLanguage);
+                }
+
                 if (!empty($this->_translate[$fallbackLanguage][$messageId])) {
                     return $this->_translate[$fallbackLanguage][$messageId];
                 }
@@ -187,6 +226,7 @@ class Translate extends \Zend_Translate_Adapter {
 
         $messageIdOriginal = $messageId;
         $messageId = mb_strtolower($messageId);
+        $messageId = trim($messageId);
 
         // don't create translation if it's just empty
         if(array_key_exists($messageId, $this->_translate[$locale])) {
@@ -218,6 +258,17 @@ class Translate extends \Zend_Translate_Adapter {
         // put it into the store, otherwise when there are more calls to the same key during one process
         // the key would be inserted/updated several times, what would be redundant
         $this->_translate[$locale][$messageId] = $messageIdOriginal;
+    }
+
+    /**
+     * @param string $messageId
+     * @param bool $original
+     * @param null $locale
+     * @return bool
+     */
+    public function isTranslated($messageId, $original = false, $locale = null) {
+        $messageId = mb_strtolower($messageId);
+        return parent::isTranslated($messageId, $original, $locale);
     }
 
     /**

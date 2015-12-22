@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 error_reporting(E_ALL & ~E_NOTICE & ~E_STRICT);
@@ -46,6 +43,7 @@ if (!defined("PIMCORE_VERSION_DIRECTORY"))  define("PIMCORE_VERSION_DIRECTORY", 
 if (!defined("PIMCORE_WEBDAV_TEMP"))  define("PIMCORE_WEBDAV_TEMP", PIMCORE_WEBSITE_VAR . "/webdav");
 if (!defined("PIMCORE_LOG_DIRECTORY"))  define("PIMCORE_LOG_DIRECTORY", PIMCORE_WEBSITE_VAR . "/log");
 if (!defined("PIMCORE_LOG_DEBUG"))  define("PIMCORE_LOG_DEBUG", PIMCORE_LOG_DIRECTORY . "/debug.log");
+if (!defined("PIMCORE_LOG_FILEOBJECT_DIRECTORY"))  define("PIMCORE_LOG_FILEOBJECT_DIRECTORY", PIMCORE_LOG_DIRECTORY . "/fileobjects");
 if (!defined("PIMCORE_LOG_MAIL_TEMP"))  define("PIMCORE_LOG_MAIL_TEMP", PIMCORE_LOG_DIRECTORY . "/mail");
 if (!defined("PIMCORE_TEMPORARY_DIRECTORY"))  define("PIMCORE_TEMPORARY_DIRECTORY", PIMCORE_WEBSITE_VAR . "/tmp");
 if (!defined("PIMCORE_CACHE_DIRECTORY"))  define("PIMCORE_CACHE_DIRECTORY", PIMCORE_WEBSITE_VAR . "/cache");
@@ -69,14 +67,16 @@ $includePaths = array(
 );
 set_include_path(implode(PATH_SEPARATOR, $includePaths) . PATH_SEPARATOR);
 
+// composer autoloader
+include_once(PIMCORE_DOCUMENT_ROOT . "/vendor/autoload.php");
+
+
 // helper functions
 include(dirname(__FILE__) . "/helper.php");
 
 // setup zend framework and pimcore
 require_once PIMCORE_PATH . "/lib/Pimcore.php";
 require_once PIMCORE_PATH . "/lib/Logger.php";
-require_once PIMCORE_PATH . "/lib/Zend/Loader.php";
-require_once PIMCORE_PATH . "/lib/Zend/Loader/Autoloader.php";
 
 $autoloader = Zend_Loader_Autoloader::getInstance();
 $autoloader->suppressNotFoundWarnings(false);
@@ -96,16 +96,10 @@ foreach ($autoloaderClassMapFiles as $autoloaderClassMapFile) {
     }
 }
 
-
 // do some general stuff
 $websiteStartup = PIMCORE_CONFIGURATION_DIRECTORY . "/startup.php";
 if(@is_file($websiteStartup)) {
     include_once($websiteStartup);
-}
-
-$composerStartup = PIMCORE_DOCUMENT_ROOT . "/vendor/autoload.php";
-if(@is_file($composerStartup)) {
-    include_once($composerStartup);
 }
 
 // on pimcore shutdown

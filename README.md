@@ -1,29 +1,47 @@
 # pimcore
 
-THE PREMIER OPEN-SOURCE  
-MULTI-CHANNEL EXPERIENCE AND ENGAGEMENT MANAGEMENT PLATFORM
+THE OPEN-SOURCE ENTERPRISE CMS/CMF, PIM, DAM, ECOMMERCE-SUITE
+
+[![Software License](https://img.shields.io/badge/license-GPLv3-brightgreen.svg?style=flat)](LICENSE.md)
+[![Current Release](https://img.shields.io/packagist/v/pimcore/pimcore.svg?style=flat)](https://packagist.org/packages/pimcore/pimcore)
+[![Build Status](https://travis-ci.org/pimcore/pimcore.svg?branch=master)](https://travis-ci.org/pimcore/pimcore)
+[![Gitter](https://img.shields.io/badge/gitter-join%20chat-brightgreen.svg?style=flat)](https://gitter.im/pimcore/pimcore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 
 ![Editing Interface](website_demo/static/screenshots/1.png)
 
 * Homepage: [http://www.pimcore.org/](http://www.pimcore.org/) - Learn more about pimcore
 * Twitter: [@pimcore](https://twitter.com/pimcore) - Get the latest news
-* Issue Tracker: - [Issues](http://www.pimcore.org/issues) - Report bugs here
-* Forums: - http://www.pimcore.org/board/ - Get help
+* Issue Tracker: - [Issues](https://github.com/pimcore/pimcore/issues) - Report bugs here
+* [Google Group](https://groups.google.com/forum/#!forum/pimcore) - Discussions 
+* [StackOverflow](http://stackoverflow.com/questions/tagged/pimcore) - Questions / Support 
 
-[![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/pimcore/pimcore?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 ## Getting started
 
 Download the [latest release](http://www.pimcore.org/download) and extract the archive in document root.
-Create a database for pimcore (charset: utf8). If you have a website_example (empty installation) or a website_demo (boilerplate) folder please rename one of them to website.
+Create a database for pimcore (charset: utf8). If you have a website_example (empty installation) or a website_demo (boilerplate) folder please rename one of them to website (only if cloning from git).
 Run the pimcore installation by accessing the URL where you uploaded the pimcore files in a browser.
+
+```
+cd /your/document/root
+wget https://www.pimcore.org/download/pimcore-latest.zip
+unzip pimcore-latest.zip
+
+mysql -u root -p -e "CREATE DATABASE pimcore charset=utf8;"
+
+# now launch http://yourhostname.tld/install
+```
 
 [A detailed installation guide can be found here.](http://www.pimcore.org/wiki/pages/viewpage.action?pageId=12124463)
 
 
+## Contribute
+**Bug fixes:** please create a pull request including a reproducible description of the problem  
+**Contribute features:** contact the core-team before you start developing (contribute@pimcore.org)  
+**Security vulnerabilities:** please contact us (security@pimcore.org)  
+
 ## Copyright and license
 
-Copyright [pimcore](http://www.pimcore.org) GmbH under a modified [BSD license](LICENSE.txt).  
-For licensing details please visit http://www.pimcore.org/license
-
+Copyright: [pimcore](http://www.pimcore.org) GmbH  
+For licensing details please visit [LICENSE.md](LICENSE.md) 

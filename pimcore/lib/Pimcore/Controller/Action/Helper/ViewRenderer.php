@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Action\Helper;
@@ -40,25 +37,6 @@ class ViewRenderer extends \Zend_Controller_Action_Helper_ViewRenderer {
         }
         
         parent::postDispatch();
-
-        // append custom styles to response body
-        if($this->getActionController() instanceof FrontendController) {
-            $doc = $this->getActionController()->getDocument();
-            if(Tool::isHtmlResponse($this->getResponse())
-                && $doc && method_exists($doc, "getCss") && $doc->getCss()
-                && !$this->getRequest()->getParam("pimcore_editmode")) {
-
-                $code = '<style type="text/css" id="pimcore_styles_' . $doc->getId() . '">';
-                $code .= "\n\n" . $doc->getCss() . "\n\n";
-                $code .= '</style>';
-
-                $name = $this->getResponseSegment();
-                $this->getResponse()->appendBody(
-                    $code,
-                    $name
-                );
-            }
-        }
     }
 
     /**
@@ -125,4 +103,4 @@ class ViewRenderer extends \Zend_Controller_Action_Helper_ViewRenderer {
 }
 
 // unfortunately we need this alias here, since ZF plugin loader isn't able to handle namespaces correctly
-class_alias("\\Pimcore\\Controller\\Action\\Helper\\ViewRenderer", "\\Pimcore_Controller_Action_Helper_ViewRenderer");
+class_alias("Pimcore\\Controller\\Action\\Helper\\ViewRenderer", "Pimcore_Controller_Action_Helper_ViewRenderer");

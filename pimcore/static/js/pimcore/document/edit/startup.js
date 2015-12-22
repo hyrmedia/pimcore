@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 
@@ -28,6 +25,7 @@ if (!console) {
 
 // some globals
 var editables = [];
+var editablesReady = false;
 var editableNames = [];
 var editWindow;
 
@@ -72,7 +70,7 @@ Ext.onReady(function () {
 
     // this sets the height of the body and html element to the current absolute height of the page
     // this is because some pages set the body height, and the positioning is then done by "absolute"
-    // the problem is that ExtJS relies on the body height for DnD, so if the body isn't as high as the whole page
+    // the problem is that ExtJS relies on the body height for DnD, so if the body isn't as high as the entire page
     // dnd works only in the section covered by the specified body height
     window.setInterval(pimcore.edithelpers.setBodyHeight, 1000);
 
@@ -115,6 +113,8 @@ Ext.onReady(function () {
                 window.scrollTo(editWindow.lastScrollposition.left, editWindow.lastScrollposition.top);
             }
         }
+
+        editablesReady = true;
 
         // add lazyload styles
         // this is necessary, because otherwise ext will overwrite many default styles (reset.css)

@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 
@@ -27,19 +24,25 @@ pimcore.edithelpers = {
 
 pimcore.edithelpers.setBodyHeight = function () {
     try {
-        var body = document.body,
-            html = document.documentElement,
-            lastPageHeight = pimcore.edithelpers.__lastPageHeight;
+        var lastPageHeight = pimcore.edithelpers.__lastPageHeight;
 
-        var height = Math.max(body.scrollHeight, body.offsetHeight,
-            html.clientHeight, html.scrollHeight, html.offsetHeight);
+        var getCurrentHeight = function () {
+            var body = document.body,
+                html = document.documentElement;
 
+            return Math.max(body.scrollHeight, body.offsetHeight,
+                html.clientHeight, html.scrollHeight, html.offsetHeight);
+        };
+
+        var height = getCurrentHeight();
 
         if(!lastPageHeight || lastPageHeight < (height-100)) {
             Ext.getBody().setHeight(height);
             Ext.get(Ext.query("html")[0]).setHeight(height);
 
-            pimcore.edithelpers.__lastPageHeight = height;
+            // set the current height based based on the new height read from the dom
+            // (not the value in variable height, because the setHeight() above may changes the total height again)
+            pimcore.edithelpers.__lastPageHeight = getCurrentHeight();
         }
     } catch (e) {
         console.log(e);

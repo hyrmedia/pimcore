@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Redirect
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model;
@@ -99,7 +96,7 @@ class Redirect extends AbstractModel {
 
         $redirect = new self();
         $redirect->setId(intval($id));
-        $redirect->getResource()->getById();
+        $redirect->getDao()->getById();
 
         return $redirect;
     }
@@ -215,9 +212,9 @@ class Redirect extends AbstractModel {
      */
     public function clearDependentCache() {
         
-        // this is mostly called in Redirect\Resource not here
+        // this is mostly called in Redirect\Dao not here
         try {
-            \Pimcore\Model\Cache::clearTag("redirect");
+            \Pimcore\Cache::clearTag("redirect");
         }
         catch (\Exception $e) {
             \Logger::crit($e);
@@ -225,7 +222,8 @@ class Redirect extends AbstractModel {
     }
 
     /**
-     * @param int $expiry
+     * @param $expiry
+     * @return $this
      */
     public function setExpiry($expiry)
     {
@@ -253,7 +251,6 @@ class Redirect extends AbstractModel {
         $list->load();
 
         foreach ($list->getRedirects() as $redirect) {
-            echo $redirect->getSource() . "\n";
             $redirect->delete();
         }
     }

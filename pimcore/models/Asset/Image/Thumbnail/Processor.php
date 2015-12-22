@@ -2,22 +2,20 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Asset
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Asset\Image\Thumbnail;
 
-use Pimcore\File; 
+use Pimcore\File;
+use Pimcore\Model\Tool\TmpStore;
 use Pimcore\Tool\StopWatch;
 use Pimcore\Model\Asset;
 
@@ -38,11 +36,14 @@ class Processor {
         "roundCorners" => array("width","height"),
         "setBackgroundImage" => array("path"),
         "addOverlay" => array("path", "x", "y", "alpha", "composite", "origin"),
+        "addOverlayFit" => array("path", "composite"),
         "applyMask" => array("path"),
         "cropPercent" => array("width","height","x","y"),
         "grayscale" => array(),
         "sepia" => array(),
         "sharpen" => array('radius', 'sigma', 'amount', 'threshold'),
+        "gaussianBlur" => array('radius', 'sigma'),
+        "brightnessSaturation" => array('brightness', 'saturation', "hue"),
         "mirror" => array("mode")
     );
 
@@ -82,23 +83,22 @@ class Processor {
 
         $format = strtolower($config->getFormat());
         $contentOptimizedFormat = false;
-        $modificationDate = 0;
 
-        if(!$fileSystemPath) {
+        if(!$fileSystemPath && $asset instanceof Asset) {
             $fileSystemPath = $asset->getFileSystemPath();
         }
 
         if($asset instanceof Asset) {
             $id = $asset->getId();
-            // do not use the asset modification date because not every modification of an asset has an impact on the
-            // binary data on the hdd (e.g. meta-data, properties, ...), so it's better to use the filemtime instead
-            $modificationDate = filemtime($asset->getFileSystemPath());
         } else {
             $id = "dyn~" . crc32($fileSystemPath);
-            if(file_exists($fileSystemPath)) {
-                $modificationDate = filemtime($fileSystemPath);
-            }
         }
+
+        if(!file_exists($fileSystemPath)) {
+            return "/pimcore/static/img/filetype-not-supported.png";
+        }
+
+        $modificationDate = filemtime($fileSystemPath);
 
         $fileExt = File::getFileExtension(basename($fileSystemPath));
 
@@ -151,18 +151,18 @@ class Processor {
         }
         $path = str_replace(PIMCORE_DOCUMENT_ROOT, "", $fsPath);
 
-        // deferred means that the image will be generated on-the-fly (when requested by the browser)
-        // the configuration is saved for later use in Pimcore_Controller_Plugin_Thumbnail::routeStartup()
-        // so that it can be used also with dynamic configurations
-        if($deferred) {
-            $configPath = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/thumb_" . $id . "__" . md5($path) . ".deferred.config";
-            File::put($configPath, \Pimcore\Tool\Serialize::serialize($config));
-
+        // check for existing and still valid thumbnail
+        if (is_file($fsPath) and filemtime($fsPath) >= $modificationDate) {
             return $path;
         }
 
-        // check for existing and still valid thumbnail
-        if (is_file($fsPath) and filemtime($fsPath) >= $modificationDate) {
+        // deferred means that the image will be generated on-the-fly (when requested by the browser)
+        // the configuration is saved for later use in Pimcore\Controller\Plugin\Thumbnail::routeStartup()
+        // so that it can be used also with dynamic configurations
+        if($deferred) {
+            $configId = "thumb_" . $id . "__" . md5($path);
+            TmpStore::add($configId, $config, "thumbnail_deferred");
+
             return $path;
         }
 
@@ -260,7 +260,8 @@ class Processor {
         $image->save($fsPath, $format, $config->getQuality());
 
         if($contentOptimizedFormat) {
-            \Pimcore\Image\Optimizer::optimize($fsPath);
+            $tmpStoreKey = str_replace(PIMCORE_TEMPORARY_DIRECTORY . "/", "", $fsPath);
+            TmpStore::add($tmpStoreKey, "-", "image-optimize-queue");
         }
 
         clearstatcache();
@@ -278,5 +279,27 @@ class Processor {
         }
 
         return $path;
+    }
+
+    /**
+     *
+     */
+    public static function processOptimizeQueue() {
+
+        $ids = TmpStore::getIdsByTag("image-optimize-queue");
+
+        // id = path of image relative to PIMCORE_TEMPORARY_DIRECTORY
+        foreach($ids as $id) {
+            $file = PIMCORE_TEMPORARY_DIRECTORY . "/" . $id;
+            if(file_exists($file)) {
+                $originalFilesize = filesize($file);
+                \Pimcore\Image\Optimizer::optimize($file);
+                \Logger::debug("Optimized image: " . $file . " saved " . formatBytes($originalFilesize-filesize($file)));
+            } else {
+                \Logger::debug("Skip optimizing of " . $file . " because it doesn't exist anymore");
+            }
+
+            TmpStore::delete($id);
+        }
     }
 }

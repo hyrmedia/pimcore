@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.settings.thumbnail.item");
@@ -926,6 +923,55 @@ pimcore.settings.thumbnail.items = {
         return item;
     },
 
+
+    itemAddOverlayFit: function (panel, data, getName) {
+
+        var niceName = t("addoverlay_fit") + " (Imagick)";
+        if(typeof getName != "undefined" && getName) {
+            return niceName;
+        }
+
+        if(typeof data == "undefined") {
+            data = {};
+        }
+
+        if(typeof data.composite == "undefined" || data.composite == "") {
+            data.composite = "COMPOSITE_DEFAULT";
+        }
+
+        var myId = Ext.id();
+
+        var item =  new Ext.form.FormPanel({
+            layout: "pimcoreform",
+            id: myId,
+            style: "margin: 10px 0 0 0",
+            bodyStyle: "padding: 10px;",
+            tbar: this.getTopBar(niceName, myId, panel),
+            items: [{
+                xtype: 'textfield',
+                fieldLabel: t("path") + " <br />(rel. to doc-root)",
+                name: "path",
+                value: data.path,
+                width: 350
+            },{
+                xtype: "combo",
+                name: "composite",
+                fieldLabel: t("composite"),
+                value: data.composite,
+                triggerAction: 'all',
+                editable: false,
+                store: ["COMPOSITE_DEFAULT", "COMPOSITE_HARDLIGHT", "COMPOSITE_EXCLUSION"],
+                width: 200
+            },{
+                xtype: "hidden",
+                name: "type",
+                value: "addOverlayFit"
+            }]
+        });
+
+        return item;
+    },
+
     itemApplyMask: function (panel, data, getName) {
 
         var niceName = t("applymask") + " (Imagick)";
@@ -1080,6 +1126,106 @@ pimcore.settings.thumbnail.items = {
                 xtype: 'hidden',
                 name: 'type',
                 value: 'sharpen'
+            }]
+        });
+
+        return item;
+    },
+
+    itemGaussianBlur: function (panel, data, getName) {
+
+        var niceName = t("gaussianBlur") + " (Imagick)";
+        if(typeof getName != "undefined" && getName) {
+            return niceName;
+        }
+
+        if(typeof data == "undefined") {
+            data = {};
+        }
+        var myId = Ext.id();
+
+        var item =  new Ext.form.FormPanel({
+            layout: "pimcoreform",
+            id: myId,
+            style: "margin: 10px 0 0 0",
+            bodyStyle: "padding: 10px;",
+            tbar: this.getTopBar(niceName, myId, panel),
+            items: [{
+                xtype: 'spinnerfield',
+                name: 'radius',
+                fieldLabel: t('radius'),
+                width: 50,
+                decimalPrecision: 1,
+                minValue: 0,
+                allowDecimals: true,
+                incrementValue: 0.1,
+                value: data.radius || 0
+            },{
+                xtype: 'spinnerfield',
+                name: 'sigma',
+                fieldLabel: t('sigma'),
+                width: 50,
+                decimalPrecision: 1,
+                minValue: 0,
+                allowDecimals: true,
+                incrementValue: 0.1,
+                value: data.sigma || 1
+            },{
+                xtype: 'hidden',
+                name: 'type',
+                value: 'gaussianBlur'
+            }]
+        });
+
+        return item;
+    },
+
+    itemBrightnessSaturation: function (panel, data, getName) {
+
+        var niceName = t("brightness") + " / " + t("saturation") + " / " + t("hue") + " (Imagick)";
+        if(typeof getName != "undefined" && getName) {
+            return niceName;
+        }
+
+        if(typeof data == "undefined") {
+            data = {};
+        }
+        var myId = Ext.id();
+
+        var item =  new Ext.form.FormPanel({
+            layout: "pimcoreform",
+            id: myId,
+            style: "margin: 10px 0 0 0",
+            bodyStyle: "padding: 10px;",
+            tbar: this.getTopBar(niceName, myId, panel),
+            items: [{
+                xtype: 'spinnerfield',
+                name: 'brightness',
+                fieldLabel: t('brightness'),
+                width: 50,
+                allowDecimals: false,
+                incrementValue: 1,
+                value: data.brightness || 100
+            },{
+                xtype: 'spinnerfield',
+                name: 'saturation',
+                fieldLabel: t('saturation'),
+                width: 50,
+                allowDecimals: false,
+                incrementValue: 1,
+                value: data.saturation || 100
+            },{
+                xtype: 'spinnerfield',
+                name: 'hue',
+                fieldLabel: t('hue'),
+                width: 50,
+                allowDecimals: false,
+                incrementValue: 1,
+                value: data.hue || 100
+            },{
+                xtype: 'hidden',
+                name: 'type',
+                value: 'brightnessSaturation'
             }]
         });
 

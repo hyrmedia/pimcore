@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Model\Search\Backend\Data;
@@ -40,8 +37,8 @@ class Searchadmin_SearchController extends \Pimcore\Controller\Action\Admin {
         $subtypes = explode(",", $this->getParam("subtype"));
         $classnames = explode(",", $this->getParam("class"));
 
-        if (is_array($classnames) and !empty($classnames[0])) {
-            $subtypes = array("object","variant");
+        if ($this->getParam("type") == "object" && is_array($classnames) && empty($classnames[0])) {
+            $subtypes = array("object","variant","folder");
         }
 
         $offset = intval($this->getParam("start"));
@@ -52,7 +49,7 @@ class Searchadmin_SearchController extends \Pimcore\Controller\Action\Admin {
 
         $searcherList = new Data\Listing();
         $conditionParts = array();
-        $db = \Pimcore\Resource::get();
+        $db = \Pimcore\Db::get();
 
         //exclude forbidden assets
         if(in_array("asset", $types)) {
@@ -155,6 +152,9 @@ class Searchadmin_SearchController extends \Pimcore\Controller\Action\Admin {
         if (is_array($types) and !empty($types[0])) {
             foreach ($types as $type) {
                 $conditionTypeParts[] = $db->quote($type);
+            }
+            if(in_array("folder",$subtypes)){
+                $conditionTypeParts[] = $db->quote('folder');
             }
             $conditionParts[] = "( maintype IN (" . implode(",", $conditionTypeParts) . ") )";
         }

@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    User
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model;
@@ -69,7 +66,7 @@ class User extends User\UserRole {
     /**
      * @var bool
      */
-    public $welcomescreen = true;
+    public $welcomescreen = false;
 
     /**
      * @var bool
@@ -86,6 +83,11 @@ class User extends User\UserRole {
      * @var string|null
      */
     public $apiKey;
+
+    /**
+     * @var string|null
+     */
+    public $contentLanguages;
 
 
     /**
@@ -452,13 +454,30 @@ class User extends User\UserRole {
             return $thumb;
         }
 
-        $seed = $this->getName() . "-" . \Pimcore\Tool::getHostUrl();
-        $hash = \Pimcore\Tool\Misc::roboHash([
-            "seed" => $seed,
-            "width" => $width,
-            "height" => $height
-        ]);
-
-        return $hash;
+        return PIMCORE_PATH . "/static/img/avatar.png";
     }
+
+    /**
+     * @return null|string
+     */
+    public function getContentLanguages()
+    {
+        if (strlen($this->contentLanguages)) {
+            return explode(',', $this->contentLanguages);
+        }
+        return array();
+    }
+
+    /**
+     * @param null|string $contentLanguages
+     */
+    public function setContentLanguages($contentLanguages)
+    {
+        if ($contentLanguages && is_array($contentLanguages)) {
+            $contentLanguages = implode(',', $contentLanguages);
+        }
+        $this->contentLanguages = $contentLanguages;
+    }
+
+
 }

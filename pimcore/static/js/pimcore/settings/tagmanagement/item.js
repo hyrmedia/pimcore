@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.settings.tagmanagement.item");
@@ -58,7 +55,6 @@ pimcore.settings.tagmanagement.item = Class.create({
 
         this.panel = new Ext.form.FormPanel({
             border: false,
-//            layout: "fit",
             layout: "pimcoreform",
             closable: true,
             autoScroll: true,
@@ -72,8 +68,7 @@ pimcore.settings.tagmanagement.item = Class.create({
                 name: "name",
                 value: this.data.name,
                 fieldLabel: t("name"),
-                width: 300,
-                disabled: true
+                width: 300
             },{
                 xtype: "textarea",
                 name: "description",
@@ -257,7 +252,7 @@ pimcore.settings.tagmanagement.item = Class.create({
                 fieldLabel: t('element_css_selector'),
                 name: "item." + myId + ".element",
                 disableKeyFilter: true,
-                store: [["body","body"],["head","head"]],
+                store: [["head","head"],["body","body"]],
                 triggerAction: "all",
                 mode: "local",
                 value: data.element,
@@ -285,7 +280,17 @@ pimcore.settings.tagmanagement.item = Class.create({
 
     save: function () {
 
-        var m = Ext.encode(this.panel.getForm().getFieldValues());
+        var values = this.panel.getForm().getFieldValues();
+
+        // name validation
+        var regresult = values.name.match(/[a-zA-Z0-9_\-]+/);
+        if (values.name.length < 1 || regresult != values.name) {
+            Ext.MessageBox.alert(t("error"), t('the_key_is_already_in_use_in_this_level_please_choose_an_other_key'));
+            return;
+        }
+
+        var m = Ext.encode(values);
+
         Ext.Ajax.request({
             url: "/admin/settings/tag-management-update",
             method: "post",
@@ -295,6 +300,8 @@ pimcore.settings.tagmanagement.item = Class.create({
             },
             success: this.saveOnComplete.bind(this)
         });
+
+        this.data.name = values.name;
     },
 
     saveOnComplete: function () {

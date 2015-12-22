@@ -3,477 +3,6 @@ SET NAMES UTF8;
 
 
 
-DROP TABLE IF EXISTS `assets`;
-CREATE TABLE `assets` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `parentId` int(11) unsigned DEFAULT NULL,
-  `type` varchar(20) DEFAULT NULL,
-  `filename` varchar(255) DEFAULT '',
-  `path` varchar(255) DEFAULT NULL,
-  `mimetype` varchar(255) DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  `userOwner` int(11) unsigned DEFAULT NULL,
-  `userModification` int(11) unsigned DEFAULT NULL,
-  `customSettings` text,
-  PRIMARY KEY (`id`),
-  KEY `parentId` (`parentId`),
-  KEY `filename` (`filename`),
-  KEY `path` (`path`)
-) ENGINE=InnoDB AUTO_INCREMENT=71 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `assets_metadata`;
-CREATE TABLE `assets_metadata` (
-  `cid` int(11) DEFAULT NULL,
-  `name` varchar(255) DEFAULT NULL,
-  `language` varchar(255) DEFAULT NULL,
-  `type` enum('input','textarea','asset','document','object','date','select','checkbox') DEFAULT NULL,
-  `data` text,
-  KEY `cid` (`cid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `assets_metadata_predefined`;
-CREATE TABLE `assets_metadata_predefined` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `description` text,
-  `language` varchar(255) DEFAULT NULL,
-  `type` enum('input','textarea','asset','document','object','date','select','checkbox') DEFAULT NULL,
-  `data` text,
-  `targetSubtype` enum('image','text','audio','video','document','archive','unknown') DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  `config` text,
-  PRIMARY KEY (`id`),
-  KEY `name` (`name`),
-  KEY `id` (`id`),
-  KEY `type` (`type`),
-  KEY `language` (`language`),
-  KEY `targetSubtype` (`targetSubtype`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `cache`;
-CREATE TABLE `cache` (
-  `id` varchar(165) NOT NULL DEFAULT '',
-  `data` longtext,
-  `mtime` bigint(20) DEFAULT NULL,
-  `expire` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `cache_tags`;
-CREATE TABLE `cache_tags` (
-  `id` varchar(165) NOT NULL DEFAULT '',
-  `tag` varchar(165) NOT NULL DEFAULT '',
-  PRIMARY KEY (`id`,`tag`),
-  KEY `id` (`id`),
-  KEY `tag` (`tag`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `classes`;
-CREATE TABLE `classes` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `description` text,
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  `userOwner` int(11) unsigned DEFAULT NULL,
-  `userModification` int(11) unsigned DEFAULT NULL,
-  `allowInherit` tinyint(1) unsigned DEFAULT '0',
-  `allowVariants` tinyint(1) unsigned DEFAULT '0',
-  `parentClass` varchar(255) DEFAULT NULL,
-  `icon` varchar(255) DEFAULT NULL,
-  `previewUrl` varchar(255) DEFAULT NULL,
-  `propertyVisibility` text,
-  `showVariants` tinyint(1) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `content_analysis`;
-CREATE TABLE `content_analysis` (
-  `id` varchar(44) NOT NULL DEFAULT '',
-  `host` varchar(255) DEFAULT NULL,
-  `site` int(11) DEFAULT NULL,
-  `url` varchar(2000) NOT NULL DEFAULT '',
-  `type` enum('document','route') DEFAULT NULL,
-  `typeReference` int(11) DEFAULT NULL,
-  `facebookShares` int(11) DEFAULT NULL,
-  `googlePlusOne` int(11) DEFAULT NULL,
-  `links` int(5) DEFAULT NULL,
-  `linksExternal` int(5) DEFAULT NULL,
-  `h1` int(3) DEFAULT NULL,
-  `h2` int(3) DEFAULT NULL,
-  `h3` int(3) DEFAULT NULL,
-  `h4` int(3) DEFAULT NULL,
-  `h5` int(3) DEFAULT NULL,
-  `h6` int(3) DEFAULT NULL,
-  `h1Text` varchar(1000) DEFAULT NULL,
-  `imgWithoutAlt` int(3) DEFAULT NULL,
-  `imgWithAlt` int(3) DEFAULT NULL,
-  `title` varchar(1000) DEFAULT NULL,
-  `description` varchar(1000) DEFAULT NULL,
-  `urlLength` int(4) DEFAULT NULL,
-  `urlParameters` int(2) DEFAULT NULL,
-  `microdata` int(3) DEFAULT NULL,
-  `opengraph` int(3) DEFAULT NULL,
-  `twitter` int(3) DEFAULT NULL,
-  `robotsTxtBlocked` tinyint(1) DEFAULT NULL,
-  `robotsMetaBlocked` tinyint(1) DEFAULT NULL,
-  `lastUpdate` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `host` (`host`),
-  KEY `lastUpdate` (`lastUpdate`),
-  KEY `site` (`site`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `content_index`;
-CREATE TABLE `content_index` (
-  `id` varchar(44) NOT NULL DEFAULT '',
-  `site` int(11) DEFAULT NULL,
-  `url` varchar(2000) NOT NULL DEFAULT '',
-  `content` longblob,
-  `type` enum('document','route') DEFAULT NULL,
-  `typeReference` int(11) DEFAULT NULL,
-  `lastUpdate` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `lastUpdate` (`lastUpdate`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `custom_layouts`;
-CREATE TABLE `custom_layouts` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `classId` int(11) unsigned NOT NULL,
-  `name` varchar(255) DEFAULT NULL,
-  `description` text,
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  `userOwner` int(11) unsigned DEFAULT NULL,
-  `userModification` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `name` (`name`,`classId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `dependencies`;
-CREATE TABLE `dependencies` (
-  `sourcetype` enum('document','asset','object') NOT NULL DEFAULT 'document',
-  `sourceid` int(11) unsigned NOT NULL DEFAULT '0',
-  `targettype` enum('document','asset','object') NOT NULL DEFAULT 'document',
-  `targetid` int(11) unsigned NOT NULL DEFAULT '0',
-  PRIMARY KEY (`sourcetype`,`sourceid`,`targetid`,`targettype`),
-  KEY `sourceid` (`sourceid`),
-  KEY `targetid` (`targetid`),
-  KEY `sourcetype` (`sourcetype`),
-  KEY `targettype` (`targettype`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents`;
-CREATE TABLE `documents` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `parentId` int(11) unsigned DEFAULT NULL,
-  `type` enum('page','link','snippet','folder','hardlink','email') DEFAULT NULL,
-  `key` varchar(255) DEFAULT '',
-  `path` varchar(255) DEFAULT NULL,
-  `index` int(11) unsigned DEFAULT '0',
-  `published` tinyint(1) unsigned DEFAULT '1',
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  `userOwner` int(11) unsigned DEFAULT NULL,
-  `userModification` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `parentId` (`parentId`),
-  KEY `key` (`key`),
-  KEY `path` (`path`),
-  KEY `published` (`published`)
-) ENGINE=InnoDB AUTO_INCREMENT=72 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_doctypes`;
-CREATE TABLE `documents_doctypes` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT NULL,
-  `module` varchar(255) DEFAULT NULL,
-  `controller` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `template` varchar(255) DEFAULT NULL,
-  `type` enum('page','snippet','email') DEFAULT NULL,
-  `priority` int(3) DEFAULT '0',
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `priority` (`priority`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_elements`;
-CREATE TABLE `documents_elements` (
-  `documentId` int(11) unsigned NOT NULL DEFAULT '0',
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `type` varchar(50) DEFAULT NULL,
-  `data` longtext,
-  PRIMARY KEY (`documentId`,`name`),
-  KEY `documentId` (`documentId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_email`;
-CREATE TABLE `documents_email` (
-  `id` int(11) unsigned NOT NULL DEFAULT '0',
-  `module` varchar(255) DEFAULT NULL,
-  `controller` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `template` varchar(255) DEFAULT NULL,
-  `to` varchar(255) DEFAULT NULL,
-  `from` varchar(255) DEFAULT NULL,
-  `cc` varchar(255) DEFAULT NULL,
-  `bcc` varchar(255) DEFAULT NULL,
-  `subject` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_hardlink`;
-CREATE TABLE `documents_hardlink` (
-  `id` int(11) DEFAULT NULL,
-  `sourceId` int(11) DEFAULT NULL,
-  `propertiesFromSource` tinyint(1) DEFAULT NULL,
-  `childsFromSource` tinyint(1) DEFAULT NULL,
-  UNIQUE KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_link`;
-CREATE TABLE `documents_link` (
-  `id` int(11) unsigned NOT NULL DEFAULT '0',
-  `internalType` enum('document','asset') DEFAULT NULL,
-  `internal` int(11) unsigned DEFAULT NULL,
-  `direct` varchar(1000) DEFAULT NULL,
-  `linktype` enum('direct','internal') DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_page`;
-CREATE TABLE `documents_page` (
-  `id` int(11) unsigned NOT NULL DEFAULT '0',
-  `module` varchar(255) DEFAULT NULL,
-  `controller` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `template` varchar(255) DEFAULT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `description` varchar(255) DEFAULT NULL,
-  `keywords` varchar(255) DEFAULT NULL,
-  `metaData` text,
-  `prettyUrl` varchar(255) DEFAULT NULL,
-  `contentMasterDocumentId` int(11) DEFAULT NULL,
-  `css` longtext,
-  `personas` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `prettyUrl` (`prettyUrl`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `documents_snippet`;
-CREATE TABLE `documents_snippet` (
-  `id` int(11) unsigned NOT NULL DEFAULT '0',
-  `module` varchar(255) DEFAULT NULL,
-  `controller` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `template` varchar(255) DEFAULT NULL,
-  `contentMasterDocumentId` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `edit_lock`;
-CREATE TABLE `edit_lock` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `cid` int(11) unsigned NOT NULL DEFAULT '0',
-  `ctype` enum('document','asset','object') DEFAULT NULL,
-  `userId` int(11) unsigned NOT NULL DEFAULT '0',
-  `sessionId` varchar(255) DEFAULT NULL,
-  `date` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `cid` (`cid`),
-  KEY `ctype` (`ctype`),
-  KEY `cidtype` (`cid`,`ctype`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `email_blacklist`;
-CREATE TABLE `email_blacklist` (
-  `address` varchar(255) NOT NULL DEFAULT '',
-  `creationDate` int(11) unsigned DEFAULT NULL,
-  `modificationDate` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`address`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `email_log`;
-CREATE TABLE `email_log` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `documentId` int(11) DEFAULT NULL,
-  `requestUri` varchar(500) DEFAULT NULL,
-  `params` text,
-  `from` varchar(500) DEFAULT NULL,
-  `to` longtext,
-  `cc` longtext,
-  `bcc` longtext,
-  `sentDate` bigint(20) DEFAULT NULL,
-  `subject` varchar(500) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `glossary`;
-CREATE TABLE `glossary` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `language` varchar(10) DEFAULT NULL,
-  `casesensitive` tinyint(1) DEFAULT NULL,
-  `exactmatch` tinyint(1) DEFAULT NULL,
-  `text` varchar(255) DEFAULT NULL,
-  `link` varchar(255) DEFAULT NULL,
-  `abbr` varchar(255) DEFAULT NULL,
-  `acronym` varchar(255) DEFAULT NULL,
-  `site` int(11) unsigned DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `language` (`language`),
-  KEY `site` (`site`)
-) ENGINE=InnoDB AUTO_INCREMENT=8 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `http_error_log`;
-CREATE TABLE `http_error_log` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `path` varchar(1000) DEFAULT NULL,
-  `code` int(3) DEFAULT NULL,
-  `parametersGet` longtext,
-  `parametersPost` longtext,
-  `cookies` longtext,
-  `serverVars` longtext,
-  `date` bigint(20) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `path` (`path`(255)),
-  KEY `code` (`code`),
-  KEY `date` (`date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `keyvalue_groups`;
-CREATE TABLE `keyvalue_groups` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `description` varchar(255) DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `keyvalue_keys`;
-CREATE TABLE `keyvalue_keys` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `description` text,
-  `type` enum('bool','number','select','text','translated','translatedSelect','range') DEFAULT NULL,
-  `unit` varchar(255) DEFAULT NULL,
-  `possiblevalues` text,
-  `group` int(11) DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  `translator` int(11) DEFAULT NULL,
-  `mandatory` tinyint(1) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `group` (`group`),
-  CONSTRAINT `keyvalue_keys_ibfk_1` FOREIGN KEY (`group`) REFERENCES `keyvalue_groups` (`id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `keyvalue_translator_configuration`;
-CREATE TABLE `keyvalue_translator_configuration` (
-  `id` int(10) NOT NULL AUTO_INCREMENT,
-  `name` varchar(200) DEFAULT NULL,
-  `translator` varchar(200) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `locks`;
-CREATE TABLE `locks` (
-  `id` varchar(150) NOT NULL DEFAULT '',
-  `date` int(11) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=MEMORY DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `notes`;
-CREATE TABLE `notes` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `type` varchar(255) DEFAULT NULL,
-  `cid` int(11) DEFAULT NULL,
-  `ctype` enum('asset','document','object') DEFAULT NULL,
-  `date` int(11) DEFAULT NULL,
-  `user` int(11) DEFAULT NULL,
-  `title` varchar(255) DEFAULT NULL,
-  `description` longtext,
-  PRIMARY KEY (`id`),
-  KEY `cid` (`cid`),
-  KEY `ctype` (`ctype`),
-  KEY `date` (`date`)
-) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `notes_data`;
-CREATE TABLE `notes_data` (
-  `id` int(11) NOT NULL DEFAULT '0',
-  `name` varchar(255) DEFAULT NULL,
-  `type` enum('text','date','document','asset','object','bool') DEFAULT NULL,
-  `data` text,
-  KEY `id` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
 DROP TABLE IF EXISTS `object_localized_data_2`;
 CREATE TABLE `object_localized_data_2` (
   `ooo_id` int(11) NOT NULL DEFAULT '0',
@@ -839,528 +368,79 @@ CREATE TABLE `object_store_6` (
 
 
 
-DROP TABLE IF EXISTS `objects`;
-CREATE TABLE `objects` (
-  `o_id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `o_parentId` int(11) unsigned DEFAULT NULL,
-  `o_type` enum('object','folder','variant') DEFAULT NULL,
-  `o_key` varchar(255) DEFAULT '',
-  `o_path` varchar(255) DEFAULT NULL,
-  `o_index` int(11) unsigned DEFAULT '0',
-  `o_published` tinyint(1) unsigned DEFAULT '1',
-  `o_creationDate` bigint(20) unsigned DEFAULT NULL,
-  `o_modificationDate` bigint(20) unsigned DEFAULT NULL,
-  `o_userOwner` int(11) unsigned DEFAULT NULL,
-  `o_userModification` int(11) unsigned DEFAULT NULL,
-  `o_classId` int(11) unsigned DEFAULT NULL,
-  `o_className` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`o_id`),
-  KEY `key` (`o_key`),
-  KEY `path` (`o_path`),
-  KEY `published` (`o_published`),
-  KEY `parentId` (`o_parentId`),
-  KEY `type` (`o_type`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8;
 
 
-
-DROP TABLE IF EXISTS `properties`;
-CREATE TABLE `properties` (
-  `cid` int(11) unsigned NOT NULL DEFAULT '0',
-  `ctype` enum('document','asset','object') NOT NULL DEFAULT 'document',
-  `cpath` varchar(255) DEFAULT NULL,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `type` enum('text','date','document','asset','object','bool','select') DEFAULT NULL,
-  `data` text,
-  `inheritable` tinyint(1) unsigned DEFAULT '1',
-  PRIMARY KEY (`cid`,`ctype`,`name`),
-  KEY `cpath` (`cpath`),
-  KEY `inheritable` (`inheritable`),
-  KEY `ctype` (`ctype`),
-  KEY `cid` (`cid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `properties_predefined`;
-CREATE TABLE `properties_predefined` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) DEFAULT '',
-  `description` text,
-  `key` varchar(255) DEFAULT NULL,
-  `type` enum('text','document','asset','bool','select','object') DEFAULT NULL,
-  `data` text,
-  `config` text,
-  `ctype` enum('document','asset','object') DEFAULT NULL,
-  `inheritable` tinyint(1) unsigned DEFAULT '0',
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `name` (`name`),
-  KEY `id` (`id`),
-  KEY `key` (`key`),
-  KEY `type` (`type`),
-  KEY `ctype` (`ctype`),
-  KEY `inheritable` (`inheritable`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `recyclebin`;
-CREATE TABLE `recyclebin` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `type` varchar(20) DEFAULT NULL,
-  `subtype` varchar(20) DEFAULT NULL,
-  `path` varchar(255) DEFAULT NULL,
-  `amount` int(3) DEFAULT NULL,
-  `date` bigint(20) DEFAULT NULL,
-  `deletedby` varchar(50) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=25 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `redirects`;
-CREATE TABLE `redirects` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `source` varchar(255) DEFAULT NULL,
-  `sourceEntireUrl` tinyint(1) DEFAULT NULL,
-  `sourceSite` int(11) DEFAULT NULL,
-  `passThroughParameters` tinyint(1) DEFAULT NULL,
-  `target` varchar(255) DEFAULT NULL,
-  `targetSite` int(11) DEFAULT NULL,
-  `statusCode` varchar(3) DEFAULT NULL,
-  `priority` int(2) DEFAULT '0',
-  `expiry` bigint(20) DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `priority` (`priority`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `sanitycheck`;
-CREATE TABLE `sanitycheck` (
-  `id` int(11) unsigned NOT NULL,
-  `type` enum('document','asset','object') NOT NULL,
-  PRIMARY KEY (`id`,`type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `schedule_tasks`;
-CREATE TABLE `schedule_tasks` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `cid` int(11) unsigned DEFAULT NULL,
-  `ctype` enum('document','asset','object') DEFAULT NULL,
-  `date` bigint(20) unsigned DEFAULT NULL,
-  `action` enum('publish','unpublish','delete','publish-version') DEFAULT NULL,
-  `version` bigint(20) unsigned DEFAULT NULL,
-  `active` tinyint(1) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `cid` (`cid`),
-  KEY `ctype` (`ctype`),
-  KEY `active` (`active`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `search_backend_data`;
-CREATE TABLE `search_backend_data` (
-  `id` int(11) NOT NULL,
-  `fullpath` varchar(330) DEFAULT NULL,
-  `maintype` varchar(8) NOT NULL DEFAULT '',
-  `type` varchar(20) DEFAULT NULL,
-  `subtype` varchar(255) DEFAULT NULL,
-  `published` bigint(20) DEFAULT NULL,
-  `creationDate` bigint(20) DEFAULT NULL,
-  `modificationDate` bigint(20) DEFAULT NULL,
-  `userOwner` int(11) DEFAULT NULL,
-  `userModification` int(11) DEFAULT NULL,
-  `data` longtext,
-  `properties` text,
-  PRIMARY KEY (`id`,`maintype`),
-  KEY `id` (`id`),
-  KEY `fullpath` (`fullpath`),
-  KEY `maintype` (`maintype`),
-  KEY `type` (`type`),
-  KEY `subtype` (`subtype`),
-  KEY `published` (`published`),
-  FULLTEXT KEY `data` (`data`),
-  FULLTEXT KEY `properties` (`properties`),
-  FULLTEXT KEY `fulltext` (`data`,`properties`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `sites`;
-CREATE TABLE `sites` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `mainDomain` varchar(255) DEFAULT NULL,
-  `domains` text,
-  `rootId` int(11) unsigned DEFAULT NULL,
-  `errorDocument` varchar(255) DEFAULT NULL,
-  `redirectToMainDomain` tinyint(1) DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `rootId` (`rootId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `staticroutes`;
-CREATE TABLE `staticroutes` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(50) DEFAULT NULL,
-  `pattern` varchar(255) DEFAULT NULL,
-  `reverse` varchar(255) DEFAULT NULL,
-  `module` varchar(255) DEFAULT NULL,
-  `controller` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `variables` varchar(255) DEFAULT NULL,
-  `defaults` varchar(255) DEFAULT NULL,
-  `siteId` int(11) DEFAULT NULL,
-  `priority` int(3) DEFAULT '0',
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `priority` (`priority`),
-  KEY `name` (`name`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `targeting_personas`;
-CREATE TABLE `targeting_personas` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `description` text,
-  `conditions` longtext,
-  `threshold` int(11) DEFAULT NULL,
-  `active` tinyint(1) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `targeting_rules`;
-CREATE TABLE `targeting_rules` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `description` text,
-  `scope` varchar(50) DEFAULT NULL,
-  `active` tinyint(1) DEFAULT NULL,
-  `conditions` longtext,
-  `actions` longtext,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `tracking_events`;
-CREATE TABLE `tracking_events` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `category` varchar(255) DEFAULT NULL,
-  `action` varchar(255) DEFAULT NULL,
-  `label` varchar(255) DEFAULT NULL,
-  `data` varchar(255) DEFAULT NULL,
-  `timestamp` bigint(20) unsigned DEFAULT NULL,
-  `year` int(5) unsigned DEFAULT NULL,
-  `month` int(2) unsigned DEFAULT NULL,
-  `day` int(2) unsigned DEFAULT NULL,
-  `dayOfWeek` int(1) unsigned DEFAULT NULL,
-  `dayOfYear` int(3) unsigned DEFAULT NULL,
-  `weekOfYear` int(2) unsigned DEFAULT NULL,
-  `hour` int(2) unsigned DEFAULT NULL,
-  `minute` int(2) unsigned DEFAULT NULL,
-  `second` int(2) unsigned DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `timestamp` (`timestamp`),
-  KEY `year` (`year`),
-  KEY `month` (`month`),
-  KEY `day` (`day`),
-  KEY `dayOfWeek` (`dayOfWeek`),
-  KEY `dayOfYear` (`dayOfYear`),
-  KEY `weekOfYear` (`weekOfYear`),
-  KEY `hour` (`hour`),
-  KEY `minute` (`minute`),
-  KEY `second` (`second`),
-  KEY `category` (`category`),
-  KEY `action` (`action`),
-  KEY `label` (`label`),
-  KEY `data` (`data`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `translations_admin`;
-CREATE TABLE `translations_admin` (
-  `key` varchar(255) NOT NULL DEFAULT '',
-  `language` varchar(10) NOT NULL DEFAULT '',
-  `text` text,
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  PRIMARY KEY (`key`,`language`),
-  KEY `language` (`language`),
-  KEY `key` (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `translations_website`;
-CREATE TABLE `translations_website` (
-  `key` varchar(255) NOT NULL DEFAULT '',
-  `language` varchar(10) NOT NULL DEFAULT '',
-  `text` text,
-  `creationDate` bigint(20) unsigned DEFAULT NULL,
-  `modificationDate` bigint(20) unsigned DEFAULT NULL,
-  PRIMARY KEY (`key`,`language`),
-  KEY `language` (`language`),
-  KEY `key` (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `tree_locks`;
-CREATE TABLE `tree_locks` (
-  `id` int(11) NOT NULL DEFAULT '0',
-  `type` enum('asset','document','object') NOT NULL DEFAULT 'asset',
-  `locked` enum('self','propagate') DEFAULT NULL,
-  PRIMARY KEY (`id`,`type`),
-  KEY `id` (`id`),
-  KEY `type` (`type`),
-  KEY `locked` (`locked`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `users`;
-CREATE TABLE `users` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `parentId` int(11) unsigned DEFAULT NULL,
-  `type` enum('user','userfolder','role','rolefolder') NOT NULL DEFAULT 'user',
-  `name` varchar(50) DEFAULT NULL,
-  `password` varchar(255) DEFAULT NULL,
-  `firstname` varchar(255) DEFAULT NULL,
-  `lastname` varchar(255) DEFAULT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `language` varchar(10) DEFAULT NULL,
-  `admin` tinyint(1) unsigned DEFAULT '0',
-  `active` tinyint(1) unsigned DEFAULT '1',
-  `permissions` varchar(1000) DEFAULT NULL,
-  `roles` varchar(1000) DEFAULT NULL,
-  `welcomescreen` tinyint(1) DEFAULT NULL,
-  `closeWarning` tinyint(1) DEFAULT NULL,
-  `memorizeTabs` tinyint(1) DEFAULT NULL,
-  `docTypes` varchar(255) DEFAULT NULL,
-  `classes` varchar(255) DEFAULT NULL,
-  `apiKey` varchar(255) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `type_name` (`type`,`name`),
-  KEY `parentId` (`parentId`),
-  KEY `name` (`name`),
-  KEY `password` (`password`)
-) ENGINE=InnoDB AUTO_INCREMENT=31 DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `users_permission_definitions`;
-CREATE TABLE `users_permission_definitions` (
-  `key` varchar(50) NOT NULL DEFAULT '',
-  PRIMARY KEY (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `users_workspaces_asset`;
-CREATE TABLE `users_workspaces_asset` (
-  `cid` int(11) unsigned NOT NULL DEFAULT '0',
-  `cpath` varchar(255) DEFAULT NULL,
-  `userId` int(11) NOT NULL DEFAULT '0',
-  `list` tinyint(1) DEFAULT '0',
-  `view` tinyint(1) DEFAULT '0',
-  `publish` tinyint(1) DEFAULT '0',
-  `delete` tinyint(1) DEFAULT '0',
-  `rename` tinyint(1) DEFAULT '0',
-  `create` tinyint(1) DEFAULT '0',
-  `settings` tinyint(1) DEFAULT '0',
-  `versions` tinyint(1) DEFAULT '0',
-  `properties` tinyint(1) DEFAULT '0',
-  PRIMARY KEY (`cid`,`userId`),
-  KEY `cid` (`cid`),
-  KEY `userId` (`userId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `users_workspaces_document`;
-CREATE TABLE `users_workspaces_document` (
-  `cid` int(11) unsigned NOT NULL DEFAULT '0',
-  `cpath` varchar(255) DEFAULT NULL,
-  `userId` int(11) NOT NULL DEFAULT '0',
-  `list` tinyint(1) unsigned DEFAULT '0',
-  `view` tinyint(1) unsigned DEFAULT '0',
-  `save` tinyint(1) unsigned DEFAULT '0',
-  `publish` tinyint(1) unsigned DEFAULT '0',
-  `unpublish` tinyint(1) unsigned DEFAULT '0',
-  `delete` tinyint(1) unsigned DEFAULT '0',
-  `rename` tinyint(1) unsigned DEFAULT '0',
-  `create` tinyint(1) unsigned DEFAULT '0',
-  `settings` tinyint(1) unsigned DEFAULT '0',
-  `versions` tinyint(1) unsigned DEFAULT '0',
-  `properties` tinyint(1) unsigned DEFAULT '0',
-  PRIMARY KEY (`cid`,`userId`),
-  KEY `cid` (`cid`),
-  KEY `userId` (`userId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `users_workspaces_object`;
-CREATE TABLE `users_workspaces_object` (
-  `cid` int(11) unsigned NOT NULL DEFAULT '0',
-  `cpath` varchar(255) DEFAULT NULL,
-  `userId` int(11) NOT NULL DEFAULT '0',
-  `list` tinyint(1) unsigned DEFAULT '0',
-  `view` tinyint(1) unsigned DEFAULT '0',
-  `save` tinyint(1) unsigned DEFAULT '0',
-  `publish` tinyint(1) unsigned DEFAULT '0',
-  `unpublish` tinyint(1) unsigned DEFAULT '0',
-  `delete` tinyint(1) unsigned DEFAULT '0',
-  `rename` tinyint(1) unsigned DEFAULT '0',
-  `create` tinyint(1) unsigned DEFAULT '0',
-  `settings` tinyint(1) unsigned DEFAULT '0',
-  `versions` tinyint(1) unsigned DEFAULT '0',
-  `properties` tinyint(1) unsigned DEFAULT '0',
-  `lEdit` text,
-  `lView` text,
-  `layouts` text,
-  PRIMARY KEY (`cid`,`userId`),
-  KEY `cid` (`cid`),
-  KEY `userId` (`userId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `uuids`;
-CREATE TABLE `uuids` (
-  `uuid` char(36) NOT NULL,
-  `itemId` bigint(20) unsigned NOT NULL,
-  `type` varchar(25) NOT NULL,
-  `instanceIdentifier` varchar(50) NOT NULL,
-  UNIQUE KEY `itemId_type_uuid` (`itemId`,`type`,`uuid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `versions`;
-CREATE TABLE `versions` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `cid` int(11) unsigned DEFAULT NULL,
-  `ctype` enum('document','asset','object') DEFAULT NULL,
-  `userId` int(11) unsigned DEFAULT NULL,
-  `note` text,
-  `date` bigint(1) unsigned DEFAULT NULL,
-  `public` tinyint(1) unsigned NOT NULL DEFAULT '0',
-  `serialized` tinyint(1) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `cid` (`cid`),
-  KEY `ctype` (`ctype`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-DROP TABLE IF EXISTS `website_settings`;
-CREATE TABLE `website_settings` (
-  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL DEFAULT '',
-  `type` enum('text','document','asset','object','bool') DEFAULT NULL,
-  `data` text,
-  `siteId` int(11) unsigned DEFAULT NULL,
-  `creationDate` bigint(20) unsigned DEFAULT '0',
-  `modificationDate` bigint(20) unsigned DEFAULT '0',
-  PRIMARY KEY (`id`),
-  KEY `name` (`name`),
-  KEY `siteId` (`siteId`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
-
-
-
-
-
-INSERT INTO `assets` VALUES (1,0,'folder','','/','',1368522989,1368522989,1,1,'');
-INSERT INTO `assets` VALUES (3,1,'folder','portal-sujets','/','',1368530371,1368632469,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (4,3,'image','slide-01.jpg','/portal-sujets/','image/jpeg',1368530684,1370432846,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}');
-INSERT INTO `assets` VALUES (5,3,'image','slide-02.jpg','/portal-sujets/','image/jpeg',1368530764,1370432868,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}');
-INSERT INTO `assets` VALUES (6,3,'image','slide-03.jpg','/portal-sujets/','image/jpeg',1368530764,1370432860,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}');
-INSERT INTO `assets` VALUES (7,1,'folder','examples','/','',1368531816,1368632468,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (17,7,'folder','panama','/examples/','',1368532826,1368632468,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (18,17,'image','img_0117.jpg','/examples/panama/','image/jpeg',1368532831,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (19,17,'image','img_0201.jpg','/examples/panama/','image/jpeg',1368532832,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (20,17,'image','img_0089.jpg','/examples/panama/','image/jpeg',1368532833,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (21,17,'image','img_0037.jpg','/examples/panama/','image/jpeg',1368532834,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (22,17,'image','img_0399.jpg','/examples/panama/','image/jpeg',1368532836,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (23,17,'image','img_0411.jpg','/examples/panama/','image/jpeg',1368532837,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (24,17,'image','img_0410.jpg','/examples/panama/','image/jpeg',1368532838,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (25,17,'image','img_0160.jpg','/examples/panama/','image/jpeg',1368532839,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (26,1,'folder','videos','/','',1368542684,1368632471,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (27,26,'video','home-trailer-english.mp4','/videos/','video/mp4',1368542794,1405922844,0,0,'a:2:{s:10:\"thumbnails\";a:2:{s:12:\"featurerette\";a:2:{s:6:\"status\";s:8:\"finished\";s:7:\"formats\";a:2:{s:3:\"mp4\";s:83:\"/website/var/tmp/video-thumbnails/0/27/thumb__featurerette/home-trailer-english.mp4\";s:4:\"webm\";s:84:\"/website/var/tmp/video-thumbnails/0/27/thumb__featurerette/home-trailer-english.webm\";}}s:7:\"content\";a:2:{s:6:\"status\";s:8:\"finished\";s:7:\"formats\";a:2:{s:3:\"mp4\";s:78:\"/website/var/tmp/video-thumbnails/0/27/thumb__content/home-trailer-english.mp4\";s:4:\"webm\";s:79:\"/website/var/tmp/video-thumbnails/0/27/thumb__content/home-trailer-english.webm\";}}}s:8:\"duration\";d:147.00999999999999;}');
-INSERT INTO `assets` VALUES (29,1,'folder','documents','/','',1368548619,1368632467,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (34,1,'folder','screenshots','/','',1368560793,1368632470,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (35,34,'image','glossary.png','/screenshots/','image/png',1368560809,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:908;s:11:\"imageHeight\";i:267;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (36,29,'document','documentation.pdf','/documents/','application/pdf',1368562442,1368632467,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (37,7,'folder','italy','/examples/','',1368596763,1368632468,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (38,37,'image','dsc04346.jpg','/examples/italy/','image/jpeg',1368596767,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (39,37,'image','dsc04344.jpg','/examples/italy/','image/jpeg',1368596768,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (40,37,'image','dsc04462.jpg','/examples/italy/','image/jpeg',1368596769,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (41,37,'image','dsc04399.jpg','/examples/italy/','image/jpeg',1368596770,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (42,7,'folder','south-africa','/examples/','',1368596785,1368632468,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (43,42,'image','img_1414.jpg','/examples/south-africa/','image/jpeg',1368596789,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (44,42,'image','img_2133.jpg','/examples/south-africa/','image/jpeg',1368596791,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (45,42,'image','img_2240.jpg','/examples/south-africa/','image/jpeg',1368596793,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (46,42,'image','img_1752.jpg','/examples/south-africa/','image/jpeg',1368596795,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (47,42,'image','img_1739.jpg','/examples/south-africa/','image/jpeg',1368596798,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (48,42,'image','img_0391.jpg','/examples/south-africa/','image/jpeg',1368596800,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:3872;s:11:\"imageHeight\";i:2332;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (49,42,'image','img_2155.jpg','/examples/south-africa/','image/jpeg',1368596801,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (50,42,'image','img_1544.jpg','/examples/south-africa/','image/jpeg',1368596804,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (51,42,'image','img_1842.jpg','/examples/south-africa/','image/jpeg',1368596806,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (52,42,'image','img_1920.jpg','/examples/south-africa/','image/jpeg',1368596808,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (53,42,'image','img_0322.jpg','/examples/south-africa/','image/jpeg',1368596810,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:7264;s:11:\"imageHeight\";i:2386;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (54,7,'folder','singapore','/examples/','',1368596871,1368632468,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (55,54,'image','dsc03778.jpg','/examples/singapore/','image/jpeg',1368597116,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (56,54,'image','dsc03807.jpg','/examples/singapore/','image/jpeg',1368597117,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (57,54,'image','dsc03835.jpg','/examples/singapore/','image/jpeg',1368597119,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (59,34,'image','thumbnail-configuration.png','/screenshots/','image/png',1368606782,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:809;s:11:\"imageHeight\";i:865;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (60,34,'image','website-translations.png','/screenshots/','image/png',1368608949,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:925;s:11:\"imageHeight\";i:554;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (61,34,'image','properties-1.png','/screenshots/','image/png',1368616805,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1025;s:11:\"imageHeight\";i:272;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (62,34,'image','properties-2.png','/screenshots/','image/png',1368616805,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1017;s:11:\"imageHeight\";i:329;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (63,34,'image','properties-3.png','/screenshots/','image/png',1368616847,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1017;s:11:\"imageHeight\";i:316;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (64,34,'image','tag-snippet-management.png','/screenshots/','image/png',1368617634,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1063;s:11:\"imageHeight\";i:872;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (65,34,'image','objects-forms.png','/screenshots/','image/png',1368623266,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:308;s:11:\"imageHeight\";i:265;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (66,29,'document','example-excel.xlsx','/documents/','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',1378992590,1378992590,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (67,29,'document','example.docx','/documents/','application/vnd.openxmlformats-officedocument.wordprocessingml.document',1378992591,1378992591,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (68,29,'document','example.pptx','/documents/','application/vnd.openxmlformats-officedocument.presentationml.presentation',1378992592,1378992592,0,0,'a:0:{}');
-INSERT INTO `assets` VALUES (69,34,'image','e-commerce1.png','/screenshots/','image/png',1388740480,1388740490,0,0,'a:3:{s:10:\"imageWidth\";i:1252;s:11:\"imageHeight\";i:1009;s:25:\"imageDimensionsCalculated\";b:1;}');
-INSERT INTO `assets` VALUES (70,34,'image','pim1.png','/screenshots/','image/png',1388740572,1388740580,0,0,'a:3:{s:10:\"imageWidth\";i:1275;s:11:\"imageHeight\";i:799;s:25:\"imageDimensionsCalculated\";b:1;}');
-
-
-
-
-
-
-
-
-
-
-
-
-INSERT INTO `classes` VALUES (2,'news','',1368613289,1382958417,0,0,0,0,'','','/%title_n%o_id','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
-INSERT INTO `classes` VALUES (3,'inquiry','',1368620413,1368622807,0,0,0,0,'','','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
-INSERT INTO `classes` VALUES (4,'person','',1368620452,1368621909,0,0,0,0,'','','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
-INSERT INTO `classes` VALUES (5,'blogArticle','',1388389165,1388389849,7,7,0,0,'','','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
-INSERT INTO `classes` VALUES (6,'blogCategory','',1388389401,1388389839,7,7,0,0,'','','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
+INSERT INTO `assets` VALUES (1,0,'folder','','/','',1368522989,1368522989,1,1,'',0);
+INSERT INTO `assets` VALUES (3,1,'folder','portal-sujets','/','',1368530371,1368632469,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (4,3,'image','slide-01.jpg','/portal-sujets/','image/jpeg',1368530684,1370432846,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}',0);
+INSERT INTO `assets` VALUES (5,3,'image','slide-02.jpg','/portal-sujets/','image/jpeg',1368530764,1370432868,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}',0);
+INSERT INTO `assets` VALUES (6,3,'image','slide-03.jpg','/portal-sujets/','image/jpeg',1368530764,1370432860,0,0,'a:4:{s:10:\"imageWidth\";i:1500;s:11:\"imageHeight\";i:550;s:25:\"imageDimensionsCalculated\";b:1;s:10:\"thumbnails\";N;}',0);
+INSERT INTO `assets` VALUES (7,1,'folder','examples','/','',1368531816,1368632468,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (17,7,'folder','panama','/examples/','',1368532826,1368632468,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (18,17,'image','img_0117.jpg','/examples/panama/','image/jpeg',1368532831,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (19,17,'image','img_0201.jpg','/examples/panama/','image/jpeg',1368532832,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (20,17,'image','img_0089.jpg','/examples/panama/','image/jpeg',1368532833,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (21,17,'image','img_0037.jpg','/examples/panama/','image/jpeg',1368532834,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (22,17,'image','img_0399.jpg','/examples/panama/','image/jpeg',1368532836,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (23,17,'image','img_0411.jpg','/examples/panama/','image/jpeg',1368532837,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (24,17,'image','img_0410.jpg','/examples/panama/','image/jpeg',1368532838,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (25,17,'image','img_0160.jpg','/examples/panama/','image/jpeg',1368532839,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (26,1,'folder','videos','/','',1368542684,1368632471,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (27,26,'video','home-trailer-english.mp4','/videos/','video/mp4',1368542794,1405922844,0,0,'a:2:{s:10:\"thumbnails\";a:2:{s:12:\"featurerette\";a:2:{s:6:\"status\";s:8:\"finished\";s:7:\"formats\";a:2:{s:3:\"mp4\";s:83:\"/website/var/tmp/video-thumbnails/0/27/thumb__featurerette/home-trailer-english.mp4\";s:4:\"webm\";s:84:\"/website/var/tmp/video-thumbnails/0/27/thumb__featurerette/home-trailer-english.webm\";}}s:7:\"content\";a:2:{s:6:\"status\";s:8:\"finished\";s:7:\"formats\";a:2:{s:3:\"mp4\";s:78:\"/website/var/tmp/video-thumbnails/0/27/thumb__content/home-trailer-english.mp4\";s:4:\"webm\";s:79:\"/website/var/tmp/video-thumbnails/0/27/thumb__content/home-trailer-english.webm\";}}}s:8:\"duration\";d:147.00999999999999;}',0);
+INSERT INTO `assets` VALUES (29,1,'folder','documents','/','',1368548619,1368632467,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (34,1,'folder','screenshots','/','',1368560793,1368632470,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (35,34,'image','glossary.png','/screenshots/','image/png',1368560809,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:908;s:11:\"imageHeight\";i:267;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (36,29,'document','documentation.pdf','/documents/','application/pdf',1368562442,1368632467,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (37,7,'folder','italy','/examples/','',1368596763,1368632468,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (38,37,'image','dsc04346.jpg','/examples/italy/','image/jpeg',1368596767,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (39,37,'image','dsc04344.jpg','/examples/italy/','image/jpeg',1368596768,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (40,37,'image','dsc04462.jpg','/examples/italy/','image/jpeg',1368596769,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (41,37,'image','dsc04399.jpg','/examples/italy/','image/jpeg',1368596770,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2000;s:11:\"imageHeight\";i:1500;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (42,7,'folder','south-africa','/examples/','',1368596785,1368632468,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (43,42,'image','img_1414.jpg','/examples/south-africa/','image/jpeg',1368596789,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (44,42,'image','img_2133.jpg','/examples/south-africa/','image/jpeg',1368596791,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (45,42,'image','img_2240.jpg','/examples/south-africa/','image/jpeg',1368596793,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (46,42,'image','img_1752.jpg','/examples/south-africa/','image/jpeg',1368596795,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (47,42,'image','img_1739.jpg','/examples/south-africa/','image/jpeg',1368596798,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (48,42,'image','img_0391.jpg','/examples/south-africa/','image/jpeg',1368596800,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:3872;s:11:\"imageHeight\";i:2332;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (49,42,'image','img_2155.jpg','/examples/south-africa/','image/jpeg',1368596801,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (50,42,'image','img_1544.jpg','/examples/south-africa/','image/jpeg',1368596804,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (51,42,'image','img_1842.jpg','/examples/south-africa/','image/jpeg',1368596806,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (52,42,'image','img_1920.jpg','/examples/south-africa/','image/jpeg',1368596808,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:4000;s:11:\"imageHeight\";i:3000;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (53,42,'image','img_0322.jpg','/examples/south-africa/','image/jpeg',1368596810,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:7264;s:11:\"imageHeight\";i:2386;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (54,7,'folder','singapore','/examples/','',1368596871,1368632468,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (55,54,'image','dsc03778.jpg','/examples/singapore/','image/jpeg',1368597116,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (56,54,'image','dsc03807.jpg','/examples/singapore/','image/jpeg',1368597117,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (57,54,'image','dsc03835.jpg','/examples/singapore/','image/jpeg',1368597119,1368632468,0,0,'a:3:{s:10:\"imageWidth\";i:2592;s:11:\"imageHeight\";i:1944;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (59,34,'image','thumbnail-configuration.png','/screenshots/','image/png',1368606782,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:809;s:11:\"imageHeight\";i:865;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (60,34,'image','website-translations.png','/screenshots/','image/png',1368608949,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:925;s:11:\"imageHeight\";i:554;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (61,34,'image','properties-1.png','/screenshots/','image/png',1368616805,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1025;s:11:\"imageHeight\";i:272;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (62,34,'image','properties-2.png','/screenshots/','image/png',1368616805,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1017;s:11:\"imageHeight\";i:329;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (63,34,'image','properties-3.png','/screenshots/','image/png',1368616847,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1017;s:11:\"imageHeight\";i:316;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (64,34,'image','tag-snippet-management.png','/screenshots/','image/png',1368617634,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:1063;s:11:\"imageHeight\";i:872;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (65,34,'image','objects-forms.png','/screenshots/','image/png',1368623266,1368632470,0,0,'a:3:{s:10:\"imageWidth\";i:308;s:11:\"imageHeight\";i:265;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (66,29,'document','example-excel.xlsx','/documents/','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',1378992590,1378992590,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (67,29,'document','example.docx','/documents/','application/vnd.openxmlformats-officedocument.wordprocessingml.document',1378992591,1378992591,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (68,29,'document','example.pptx','/documents/','application/vnd.openxmlformats-officedocument.presentationml.presentation',1378992592,1378992592,0,0,'a:0:{}',0);
+INSERT INTO `assets` VALUES (69,34,'image','e-commerce1.png','/screenshots/','image/png',1388740480,1388740490,0,0,'a:3:{s:10:\"imageWidth\";i:1252;s:11:\"imageHeight\";i:1009;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+INSERT INTO `assets` VALUES (70,34,'image','pim1.png','/screenshots/','image/png',1388740572,1388740580,0,0,'a:3:{s:10:\"imageWidth\";i:1275;s:11:\"imageHeight\";i:799;s:25:\"imageDimensionsCalculated\";b:1;}',0);
+
+
+
+
+
+
+
+
+
+
+
+
+INSERT INTO `classes` VALUES (2,'news','',1368613289,1382958417,0,0,0,0,'',NULL,'','/%title_n%o_id','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
+INSERT INTO `classes` VALUES (3,'inquiry','',1368620413,1368622807,0,0,0,0,'',NULL,'','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
+INSERT INTO `classes` VALUES (4,'person','',1368620452,1368621909,0,0,0,0,'',NULL,'','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
+INSERT INTO `classes` VALUES (5,'blogArticle','',1388389165,1388389849,7,7,0,0,'',NULL,'','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
+INSERT INTO `classes` VALUES (6,'blogCategory','',1388389401,1388389839,7,7,0,0,'',NULL,'','','a:2:{s:4:\"grid\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}s:6:\"search\";a:5:{s:2:\"id\";b:1;s:4:\"path\";b:1;s:9:\"published\";b:1;s:16:\"modificationDate\";b:1;s:12:\"creationDate\";b:1;}}',0);
 
 
 
@@ -1652,6 +732,10 @@ INSERT INTO `dependencies` VALUES ('document',71,'document',40);
 INSERT INTO `dependencies` VALUES ('document',71,'document',60);
 INSERT INTO `dependencies` VALUES ('document',71,'document',69);
 INSERT INTO `dependencies` VALUES ('document',71,'asset',69);
+INSERT INTO `dependencies` VALUES ('document',72,'document',5);
+INSERT INTO `dependencies` VALUES ('document',72,'document',40);
+INSERT INTO `dependencies` VALUES ('document',72,'document',60);
+INSERT INTO `dependencies` VALUES ('document',72,'document',69);
 INSERT INTO `dependencies` VALUES ('object',3,'document',19);
 INSERT INTO `dependencies` VALUES ('object',3,'document',24);
 INSERT INTO `dependencies` VALUES ('object',3,'asset',43);
@@ -1743,9 +827,10 @@ INSERT INTO `documents` VALUES (65,63,'page','unsubscribe','/en/advanced-example
 INSERT INTO `documents` VALUES (66,63,'email','confirmation-email','/en/advanced-examples/newsletter/',3,1,1388409670,1388412587,0,0);
 INSERT INTO `documents` VALUES (67,62,'email','example-mailing','/newsletters/',1,1,1388412605,1388412917,0,0);
 INSERT INTO `documents` VALUES (68,5,'page','asset-thumbnail-list','/en/advanced-examples/',9,1,1388414727,1388414883,0,0);
-INSERT INTO `documents` VALUES (69,5,'snippet','sidebar','/en/advanced-examples/',12,1,1388734403,1388738477,0,0);
-INSERT INTO `documents` VALUES (70,5,'page','product-information-management','/en/advanced-examples/',11,1,1388740191,1388740585,0,0);
-INSERT INTO `documents` VALUES (71,5,'page','e-commerce','/en/advanced-examples/',10,1,1388740265,1388740613,0,0);
+INSERT INTO `documents` VALUES (69,5,'snippet','sidebar','/en/advanced-examples/',13,1,1388734403,1388738477,0,0);
+INSERT INTO `documents` VALUES (70,5,'page','product-information-management','/en/advanced-examples/',12,1,1388740191,1388740585,0,0);
+INSERT INTO `documents` VALUES (71,5,'page','e-commerce','/en/advanced-examples/',11,1,1388740265,1388740613,0,0);
+INSERT INTO `documents` VALUES (72,5,'page','sub-modules','/en/advanced-examples/',10,1,1419933647,1419933980,32,32);
 
 
 
@@ -1773,7 +858,7 @@ INSERT INTO `documents_elements` VALUES (1,'cHeadline_2','input','Oh yeah, it\'s
 INSERT INTO `documents_elements` VALUES (1,'cImage_0','image','a:9:{s:2:\"id\";i:4;s:3:\"alt\";s:0:\"\";s:11:\"cropPercent\";N;s:9:\"cropWidth\";N;s:10:\"cropHeight\";N;s:7:\"cropTop\";N;s:8:\"cropLeft\";N;s:8:\"hotspots\";a:0:{}s:6:\"marker\";a:0:{}}');
 INSERT INTO `documents_elements` VALUES (1,'cImage_1','image','a:9:{s:2:\"id\";i:5;s:3:\"alt\";s:0:\"\";s:11:\"cropPercent\";N;s:9:\"cropWidth\";N;s:10:\"cropHeight\";N;s:7:\"cropTop\";N;s:8:\"cropLeft\";N;s:8:\"hotspots\";a:0:{}s:6:\"marker\";a:0:{}}');
 INSERT INTO `documents_elements` VALUES (1,'cImage_2','image','a:9:{s:2:\"id\";i:6;s:3:\"alt\";s:0:\"\";s:11:\"cropPercent\";N;s:9:\"cropWidth\";N;s:10:\"cropHeight\";N;s:7:\"cropTop\";N;s:8:\"cropLeft\";N;s:8:\"hotspots\";a:0:{}s:6:\"marker\";a:0:{}}');
-INSERT INTO `documents_elements` VALUES (1,'cLink_0','link','a:15:{s:4:\"text\";s:16:\"See it in Action\";s:4:\"path\";s:18:\"/advanced-examples\";s:6:\"target\";s:0:\"\";s:10:\"parameters\";s:0:\"\";s:6:\"anchor\";s:0:\"\";s:5:\"title\";s:0:\"\";s:9:\"accesskey\";s:0:\"\";s:3:\"rel\";s:0:\"\";s:8:\"tabindex\";s:0:\"\";s:5:\"class\";s:0:\"\";s:10:\"attributes\";s:0:\"\";s:8:\"internal\";b:1;s:10:\"internalId\";i:5;s:12:\"internalType\";s:8:\"document\";s:4:\"type\";s:8:\"internal\";}');
+INSERT INTO `documents_elements` VALUES (1,'cLink_0','link','a:14:{s:4:\"text\";s:16:\"See it in Action\";s:4:\"path\";s:18:\"/en/basic-examples\";s:6:\"target\";s:0:\"\";s:10:\"parameters\";s:0:\"\";s:6:\"anchor\";s:0:\"\";s:5:\"title\";s:0:\"\";s:9:\"accesskey\";s:0:\"\";s:3:\"rel\";s:0:\"\";s:8:\"tabindex\";s:0:\"\";s:5:\"class\";s:0:\"\";s:10:\"attributes\";s:0:\"\";s:8:\"internal\";b:1;s:10:\"internalId\";i:3;s:12:\"internalType\";s:8:\"document\";}');
 INSERT INTO `documents_elements` VALUES (1,'cLink_1','link','a:15:{s:4:\"text\";s:16:\"See it in Action\";s:4:\"path\";s:18:\"/advanced-examples\";s:6:\"target\";s:0:\"\";s:10:\"parameters\";s:0:\"\";s:6:\"anchor\";s:0:\"\";s:5:\"title\";s:0:\"\";s:9:\"accesskey\";s:0:\"\";s:3:\"rel\";s:0:\"\";s:8:\"tabindex\";s:0:\"\";s:5:\"class\";s:0:\"\";s:10:\"attributes\";s:0:\"\";s:8:\"internal\";b:1;s:10:\"internalId\";i:5;s:12:\"internalType\";s:8:\"document\";s:4:\"type\";s:8:\"internal\";}');
 INSERT INTO `documents_elements` VALUES (1,'cLink_2','link','a:15:{s:4:\"text\";s:9:\"Checkmate\";s:4:\"path\";s:12:\"/experiments\";s:6:\"target\";s:0:\"\";s:10:\"parameters\";s:0:\"\";s:6:\"anchor\";s:0:\"\";s:5:\"title\";s:0:\"\";s:9:\"accesskey\";s:0:\"\";s:3:\"rel\";s:0:\"\";s:8:\"tabindex\";s:0:\"\";s:5:\"class\";s:0:\"\";s:10:\"attributes\";s:0:\"\";s:8:\"internal\";b:1;s:10:\"internalId\";i:6;s:12:\"internalType\";s:8:\"document\";s:4:\"type\";s:8:\"internal\";}');
 INSERT INTO `documents_elements` VALUES (1,'content','areablock','a:7:{i:0;a:2:{s:3:\"key\";s:1:\"6\";s:4:\"type\";s:15:\"icon-teaser-row\";}i:1;a:2:{s:3:\"key\";s:1:\"5\";s:4:\"type\";s:15:\"horizontal-line\";}i:2;a:2:{s:3:\"key\";s:1:\"1\";s:4:\"type\";s:10:\"featurette\";}i:3;a:2:{s:3:\"key\";s:1:\"7\";s:4:\"type\";s:18:\"tabbed-slider-text\";}i:4;a:2:{s:3:\"key\";s:1:\"8\";s:4:\"type\";s:15:\"horizontal-line\";}i:5;a:2:{s:3:\"key\";s:1:\"2\";s:4:\"type\";s:19:\"standard-teaser-row\";}i:6;a:2:{s:3:\"key\";s:1:\"3\";s:4:\"type\";s:16:\"gallery-carousel\";}}');
@@ -2643,6 +1728,10 @@ INSERT INTO `documents_elements` VALUES (71,'headTitle','input','');
 INSERT INTO `documents_elements` VALUES (71,'imagecontent2','image','a:9:{s:2:\"id\";i:69;s:3:\"alt\";s:0:\"\";s:11:\"cropPercent\";N;s:9:\"cropWidth\";N;s:10:\"cropHeight\";N;s:7:\"cropTop\";N;s:8:\"cropLeft\";N;s:8:\"hotspots\";a:0:{}s:6:\"marker\";a:0:{}}');
 INSERT INTO `documents_elements` VALUES (71,'leadcontent1','wysiwyg','');
 INSERT INTO `documents_elements` VALUES (71,'leadcontent2','wysiwyg','');
+INSERT INTO `documents_elements` VALUES (72,'content','areablock','a:0:{}');
+INSERT INTO `documents_elements` VALUES (72,'headDescription','input','');
+INSERT INTO `documents_elements` VALUES (72,'headline','input','');
+INSERT INTO `documents_elements` VALUES (72,'headTitle','input','');
 
 
 
@@ -2704,6 +1793,7 @@ INSERT INTO `documents_page` VALUES (65,'','newsletter','unsubscribe','','Unsubs
 INSERT INTO `documents_page` VALUES (68,'','advanced','asset-thumbnail-list','','Asset Thumbnail List','','','a:0:{}','',0,'','');
 INSERT INTO `documents_page` VALUES (70,'','content','default','','Product Information Management','','','a:0:{}','',0,'','');
 INSERT INTO `documents_page` VALUES (71,'','content','default','','E-Commerce','','','a:0:{}','',0,'','');
+INSERT INTO `documents_page` VALUES (72,'','category_example','test','','','','','a:0:{}',NULL,NULL,'','');
 
 
 
@@ -3046,6 +2136,10 @@ INSERT INTO `properties` VALUES (65,'document','/en/advanced-examples/newsletter
 INSERT INTO `properties` VALUES (68,'document','/en/advanced-examples/asset-thumbnail-list','navigation_name','text','Asset Thumbnail List',1);
 INSERT INTO `properties` VALUES (70,'document','/en/advanced-examples/product-information-management','navigation_name','text','Product Information Management',0);
 INSERT INTO `properties` VALUES (71,'document','/en/advanced-examples/e-commerce','navigation_name','text','E-Commerce',1);
+INSERT INTO `properties` VALUES (72,'document','/en/advanced-examples/sub-modules','navigation_exclude','text','',0);
+INSERT INTO `properties` VALUES (72,'document','/en/advanced-examples/sub-modules','navigation_name','text','Sub-Modules',0);
+INSERT INTO `properties` VALUES (72,'document','/en/advanced-examples/sub-modules','navigation_target','text','',0);
+INSERT INTO `properties` VALUES (72,'document','/en/advanced-examples/sub-modules','navigation_title','text','',0);
 
 
 
@@ -3054,6 +2148,22 @@ INSERT INTO `properties_predefined` VALUES (1,'Left Navigation Start Node','Wher
 INSERT INTO `properties_predefined` VALUES (2,'Hide Left Navigation','','leftNavHide','bool','true','','document',0,0,0);
 INSERT INTO `properties_predefined` VALUES (3,'Header Color','','headerColor','select','','orange,blue,green','document',1,0,0);
 INSERT INTO `properties_predefined` VALUES (4,'Sidebar','','sidebar','document','','','document',1,0,0);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -3208,6 +2318,7 @@ INSERT INTO `search_backend_data` VALUES (40,'/blog/articles/cum-sociis-natoque-
 INSERT INTO `search_backend_data` VALUES (41,'/crm/newsletter','object','folder','folder',1,1388408967,1388408967,0,0,'ID: 41  \nPath: /crm/newsletter  \nnewsletter','');
 INSERT INTO `search_backend_data` VALUES (42,'/crm/inquiries','object','folder','folder',1,1388409135,1388409135,0,0,'ID: 42  \nPath: /crm/inquiries  \ninquiries','');
 INSERT INTO `search_backend_data` VALUES (47,'/crm/newsletter/pimcore-byom.de~7a3','object','object','person',1,1388412533,1388412544,0,0,'ID: 47  \nPath: /crm/newsletter/pimcore-byom.de~7a3  \nmale Demo User pimcore@byom.de 1 1 Dec 30, 2013 3:08:54 PM ','token:YTozOntzOjQ6InNhbHQiO3M6MzI6IjNlMGRkYTk3MWU1YTY5MWViYmM0OGVkNGQ5NzA4MDFmIjtzOjU6ImVtYWlsIjtzOjE1OiJwaW1jb3JlQGJ5b20uZGUiO3M6MjoiaWQiO2k6NDc7fQ== ');
+INSERT INTO `search_backend_data` VALUES (72,'/en/advanced-examples/sub-modules','document','page','page',1,1419933647,1419933980,32,32,'ID: 72  \nPath: /en/advanced-examples/sub-modules  \n ','sidebar:/en/advanced-examples/sidebar blog:/en/advanced-examples/blog mainNavStartNode:/en leftNavStartNode:/en/advanced-examples language:en navigation_title: navigation_target: navigation_name:Sub-Modules navigation_exclude: ');
 
 
 
@@ -3218,6 +2329,7 @@ INSERT INTO `search_backend_data` VALUES (47,'/crm/newsletter/pimcore-byom.de~7a
 
 INSERT INTO `staticroutes` VALUES (1,'news','/(.*)_n([\\d]+)/','%prefix/%text_n%id','','news','detail','text,id','',0,1,0,0);
 INSERT INTO `staticroutes` VALUES (2,'blog','/(.*)_b([\\d]+)/','%prefix/%text_b%id','','blog','detail','text,id','',0,1,1388391249,1388391368);
+INSERT INTO `staticroutes` VALUES (3,'category-example','@/category\\-example@','/en/category-example','','category_example','test',NULL,NULL,NULL,1,1419933908,1419933931);
 
 
 
@@ -3474,7 +2586,7 @@ INSERT INTO `tree_locks` VALUES (56,'document','self');
 
 
 INSERT INTO `users` VALUES (0,0,'user','system','','','','','',1,1,'','',0,0,0,'','','');
-INSERT INTO `users` VALUES (30,0,'user','admin','$2y$10$i1n34aLVvCDRnrgq6s5JRuFcLAkr3o2qngfkEGBEwjsFPb1boiDLq',NULL,NULL,NULL,'en',1,1,'','',1,1,1,'','',NULL);
+INSERT INTO `users` VALUES (36,0,'user','admin','$2y$10$EuGBDrvMusoZjGZ66VQ99ex8RvpPO2Hgodt3RIC6g5FDgSsAgg/xC',NULL,NULL,NULL,'en',1,1,'','',1,1,1,'','',NULL);
 
 
 

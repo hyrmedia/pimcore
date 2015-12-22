@@ -2,21 +2,19 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document\Tag;
 
+use Pimcore\Tool;
 use Pimcore\Model;
 use Pimcore\ExtensionManager;
 use Pimcore\Model\Document;
@@ -142,8 +140,19 @@ class Area extends Model\Document\Tag {
             if(is_file($action)) {
                 include_once($action);
 
-                $actionClassname = "Document\\Tag\\Area\\" . ucfirst($options["type"]);
-                if(\Pimcore\Tool::classExists($actionClassname)) {
+
+                $actionClassFound = true;
+
+                $actionClassname = "\\Pimcore\\Model\\Document\\Tag\\Area\\" . ucfirst($options["type"]);
+                if(!Tool::classExists($actionClassname, false)) {
+                    // also check the legacy prefixed class name, as this is used by some plugins
+                    $actionClassname = "\\Document_Tag_Area_" . ucfirst($options["type"]);
+                    if(!Tool::classExists($actionClassname, false)) {
+                        $actionClassFound = false;
+                    }
+                }
+
+                if($actionClassFound) {
                     $actionObject = new $actionClassname();
 
                     if($actionObject instanceof Area\AbstractArea) {

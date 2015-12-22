@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Object
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Object;
@@ -20,7 +17,7 @@ namespace Pimcore\Model\Object;
 use Pimcore\Model;
 use Pimcore\Model\Object;
 use Pimcore\File;
-use Pimcore\Model\Cache; 
+use Pimcore\Cache;
 
 class ClassDefinition extends Model\AbstractModel {
 
@@ -65,6 +62,8 @@ class ClassDefinition extends Model\AbstractModel {
      * @var string
      */
     public $parentClass;
+
+    public $useTraits;
 
     /**
      * @var boolean
@@ -145,7 +144,7 @@ class ClassDefinition extends Model\AbstractModel {
 
             try {
                 $class = new self();
-                $class->getResource()->getById($id);
+                $class->getDao()->getById($id);
                 \Zend_Registry::set($cacheKey, $class);
             } catch (\Exception $e) {
                 \Logger::error($e);
@@ -164,7 +163,7 @@ class ClassDefinition extends Model\AbstractModel {
         $class = new self();
 
         try {
-            $class->getResource()->getByName($name);
+            $class->getDao()->getByName($name);
         } catch (\Exception $e) {
             \Logger::error($e);
             return null;
@@ -216,7 +215,7 @@ class ClassDefinition extends Model\AbstractModel {
 
         $this->setModificationDate(time());
 
-        $this->getResource()->save();
+        $this->getDao()->save();
 
         // create class for object
         $extendClass = "Concrete";
@@ -263,16 +262,30 @@ class ClassDefinition extends Model\AbstractModel {
         $cd .= "namespace Pimcore\\Model\\Object;";
         $cd .= "\n\n";
         $cd .= "\n\n";
+        $cd .= "/**\n";
+        if (is_array($this->getFieldDefinitions()) && count($this->getFieldDefinitions())) {
+            foreach ($this->getFieldDefinitions() as $key => $def) {
+                if (!(method_exists($def,"isRemoteOwner") and $def->isRemoteOwner())) {
+                    $cd .= "* @method static \\Pimcore\\Model\\Object\\" . ucfirst($this->getName()) . '\Listing getBy' . ucfirst($def->getName()) . ' ($value, $limit = 0) ' ."\n";
+                }
+            }
+        }
+        $cd .= "*/\n\n";
 
         $cd .= "class " . ucfirst($this->getName()) . " extends " . $extendClass . " {";
         $cd .= "\n\n";
+
+        if ($this->getUseTraits()) {
+          $cd .= 'use ' . $this->getUseTraits() . ";\n";
+          $cd .= "\n";
+        }
 
         $cd .= 'public $o_classId = ' . $this->getId() . ";\n";
         $cd .= 'public $o_className = "' . $this->getName() . '"' . ";\n";
 
         if (is_array($this->getFieldDefinitions()) && count($this->getFieldDefinitions())) {
             foreach ($this->getFieldDefinitions() as $key => $def) {
-                if (!(method_exists($def,"isRemoteOwner") and $def->isRemoteOwner())) {
+                if (!(method_exists($def,"isRemoteOwner") && $def->isRemoteOwner()) && !$def instanceof Object\ClassDefinition\Data\CalculatedValue) {
                     $cd .= "public $" . $key . ";\n";
                 }
             }
@@ -343,6 +356,10 @@ class ClassDefinition extends Model\AbstractModel {
         $cd .= "\n\n";
         $cd .= "use Pimcore\\Model\\Object;";
         $cd .= "\n\n";
+        $cd .= "/**\n";
+        $cd .= " * @method Object\\" . ucfirst($this->getName()) . " current()\n";
+        $cd .= " */";
+        $cd .= "\n\n";
         $cd .= "class Listing extends Object\\Listing\\Concrete {";
         $cd .= "\n\n";
 
@@ -367,6 +384,12 @@ class ClassDefinition extends Model\AbstractModel {
             Cache::clearTag("class_" . $this->getId());
         }
         catch (\Exception $e) {
+        }
+
+        if ($isUpdate) {
+            \Pimcore::getEventManager()->trigger("object.class.postUpdate", $this);
+        } else {
+            \Pimcore::getEventManager()->trigger("object.class.postAdd", $this);
         }
     }
 
@@ -406,7 +429,7 @@ class ClassDefinition extends Model\AbstractModel {
             $customLayout->delete();
         }
 
-        $this->getResource()->delete();
+        $this->getDao()->delete();
     }
 
     /**
@@ -415,7 +438,7 @@ class ClassDefinition extends Model\AbstractModel {
     protected function deletePhpClasses() {
         // delete the class files
         @unlink(PIMCORE_CLASS_DIRECTORY . "/Object/" . ucfirst($this->getName()) . ".php");
-        @unlink(PIMCORE_CLASS_DIRECTORY . "/Object/" . ucfirst($this->getName()) . "/List.php");
+        @unlink(PIMCORE_CLASS_DIRECTORY . "/Object/" . ucfirst($this->getName()) . "/Listing.php");
         @rmdir(PIMCORE_CLASS_DIRECTORY . "/Object/" . ucfirst($this->getName()));
     }
 
@@ -622,6 +645,22 @@ class ClassDefinition extends Model\AbstractModel {
      */
     public function getParentClass() {
         return $this->parentClass;
+    }
+
+    /**
+     * @return string
+     */
+    public function getUseTraits() {
+      return $this->useTraits;
+    }
+
+    /**
+     * @param string $useTraits
+     * @return ClassDefinition
+     */
+    public function setUseTraits($useTraits) {
+      $this->useTraits = $useTraits;
+      return $this;
     }
 
     /**

@@ -2,20 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Tool;
 use Pimcore\File;
-use Pimcore\Resource;
+use Pimcore\Db;
 use Pimcore\Model\Translation;
 
 class Admin_MiscController extends \Pimcore\Controller\Action\Admin
@@ -44,21 +41,25 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
 
         $language = $this->getParam("language");
 
-        $languageFile = Tool\Admin::getLanguageFile($language);
-        if (!is_file($languageFile)) {
-            $languageFile = Tool\Admin::getLanguageFile("en");
-        }
+        $languageFiles = [
+            $language => Tool\Admin::getLanguageFile($language),
+            "en" => Tool\Admin::getLanguageFile("en")
+        ];
 
-        $row = 1;
-        $handle = fopen($languageFile, "r");
-        while (($data = fgetcsv($handle, 0, ",")) !== FALSE) {
-            $translations[$data[0]] = $data[1];
+        $translations = [];
+        foreach($languageFiles as $langKey => $languageFile) {
+            if(file_exists($languageFile)) {
+                $rawTranslations = json_decode(file_get_contents($languageFile), true);
+                foreach ($rawTranslations as $entry) {
+                    if(!isset($translations[$entry["term"]])) {
+                        $translations[$entry["term"]] = $entry["definition"];
+                    }
+                }
+            }
         }
-        fclose($handle);
 
         $broker = \Pimcore\API\Plugin\Broker::getInstance();
         $pluginTranslations = $broker->getTranslations($language);
-        //$pluginTranslations = $this->getApiPluginBroker()->getTranslations($language);
         $translations = array_merge($pluginTranslations, $translations);
 
         $this->view->translations = $translations;
@@ -294,7 +295,7 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
     private function getFileexplorerPath($paramName = 'node')
     {
         $path = preg_replace("/^\/fileexplorer/", "", $this->getParam($paramName));
-        $path = realpath(PIMCORE_DOCUMENT_ROOT . $path);
+        $path = resolvePath(PIMCORE_DOCUMENT_ROOT . $path);
 
         if (strpos($path, PIMCORE_DOCUMENT_ROOT) !== 0) {
             throw new \Exception('operation permitted, permission denied');
@@ -323,22 +324,21 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
 
         $this->checkPermission("http_errors");
 
-        $db = Resource::get();
+        $db = Db::get();
 
-        $limit = $this->getParam("limit");
-        $offset = $this->getParam("start");
+        $limit = intval($this->getParam("limit"));
+        $offset = intval($this->getParam("start"));
         $sort = $this->getParam("sort");
         $dir = $this->getParam("dir");
         $filter = $this->getParam("filter");
-        $group = $this->getParam("group");
         if(!$limit) {
             $limit = 20;
         }
         if(!$offset) {
             $offset = 0;
         }
-        if(!$sort || !in_array($sort, array("id","code","path","date","amount"))) {
-            $sort = "date";
+        if(!$sort || !in_array($sort, array("code","uri","date","count"))) {
+            $sort = "count";
         }
         if(!$dir || !in_array($dir, array("DESC","ASC"))) {
             $dir = "DESC";
@@ -349,20 +349,14 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
             $filter = $db->quote("%" . $filter . "%");
 
             $conditionParts = array();
-            foreach (array("path", "code", "parametersGet", "parametersPost", "serverVars", "cookies") as $field) {
+            foreach (array("uri", "code", "parametersGet", "parametersPost", "serverVars", "cookies") as $field) {
                 $conditionParts[] = $field . " LIKE " . $filter;
             }
             $condition = " WHERE " . implode(" OR ", $conditionParts);
         }
 
-        if($group) {
-            $logs = $db->fetchAll("SELECT id,code,path,date,count(*) as amount,concat(code,path) as `group` FROM http_error_log " . $condition . " GROUP BY `group` ORDER BY " . $sort . " " . $dir . " LIMIT " . $offset . "," . $limit);
-            $total = $db->fetchOne("SELECT count(*) FROM (SELECT concat(code,path) as `group` FROM http_error_log " . $condition . " GROUP BY `group`) as counting");
-        } else {
-            $sort = ($sort == "amount") ? "date" : $sort;
-            $logs = $db->fetchAll("SELECT id,code,path,date FROM http_error_log " . $condition . " ORDER BY " . $sort . " " . $dir . " LIMIT " . $offset . "," . $limit);
-            $total = $db->fetchOne("SELECT count(*) FROM http_error_log " . $condition);
-        }
+        $logs = $db->fetchAll("SELECT code,uri,`count`,date FROM http_error_log " . $condition . " ORDER BY " . $sort . " " . $dir . " LIMIT " . $offset . "," . $limit);
+        $total = $db->fetchOne("SELECT count(*) FROM http_error_log " . $condition);
 
         $this->_helper->json(array(
             "items" => $logs,
@@ -375,8 +369,8 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
 
         $this->checkPermission("http_errors");
 
-        $db = Resource::get();
-        $db->delete("http_error_log");
+        $db = Db::get();
+        $db->query("TRUNCATE TABLE http_error_log"); // much faster then $db->delete()
 
         $this->_helper->json(array(
             "success" => true
@@ -387,8 +381,8 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
 
         $this->checkPermission("http_errors");
 
-        $db = Resource::get();
-        $data = $db->fetchRow("SELECT * FROM http_error_log WHERE id = ?", array($this->getParam("id")));
+        $db = Db::get();
+        $data = $db->fetchRow("SELECT * FROM http_error_log WHERE uri = ?", array($this->getParam("uri")));
 
         foreach ($data as $key => &$value) {
             if(in_array($key, array("parametersGet", "parametersPost", "serverVars", "cookies"))) {
@@ -439,107 +433,20 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
         exit;
     }
 
-
-    protected function getBounceMailbox () {
-
-        $mail = null;
-        $config = \Pimcore\Config::getSystemConfig();
-
-        if($config->email->bounce->type == "Mbox") {
-            $mail = new \Zend_Mail_Storage_Mbox(array(
-                'filename' => $config->email->bounce->mbox
-            ));
-        } else if ($config->email->bounce->type == "Maildir") {
-            $mail = new \Zend_Mail_Storage_Maildir(array(
-                'dirname' => $config->email->bounce->maildir
-            ));
-        } else if ($config->email->bounce->type == "IMAP") {
-            $mail = new \Zend_Mail_Storage_Imap(array(
-                'host' => $config->email->bounce->imap->host,
-                "port" => $config->email->bounce->imap->port,
-                'user' => $config->email->bounce->imap->username,
-                'password' => $config->email->bounce->imap->password,
-                "ssl" => (bool) $config->email->bounce->imap->ssl
-            ));
-        } else {
-            // default
-            $pathes = array(
-                "/var/mail/" . get_current_user(),
-                "/var/spool/mail/" . get_current_user()
-            );
-
-            foreach ($pathes as $path) {
-                if(is_dir($path)) {
-                    $mail = new \Zend_Mail_Storage_Maildir(array(
-                        'dirname' => $path . "/"
-                    ));
-                } else if(is_file($path)) {
-                    $mail = new \Zend_Mail_Storage_Mbox(array(
-                        'filename' => $path
-                    ));
-                }
-            }
+    public function getAvailableModulesAction() {
+        $system_modules = array(
+            "searchadmin", "reports", "webservice", "admin", "update", "install", "extensionmanager"
+        );
+        $modules = array();
+        $front = $this->getFrontController();
+        foreach ($front->getControllerDirectory() as $module => $path) {
+            if (in_array($module, $system_modules)) continue;
+            $modules[] = array("name" => $module);
         }
-
-        return $mail;
-    }
-
-    public function bounceMailInboxListAction() {
-
-        $this->checkPermission("emails");
-
-        $offset = ($this->getParam("start")) ? $this->getParam("start")+1 : 1;
-        $limit = ($this->getParam("limit")) ? $this->getParam("limit") : 40;
-
-        $mail = $this->getBounceMailbox();
-        $mail->seek($offset);
-
-        $mails = array();
-        $count = 0;
-        while ($mail->valid()) {
-            $count++;
-
-            $message = $mail->current();
-
-            $mailData = array(
-                "subject" => iconv(mb_detect_encoding($message->subject), "UTF-8", $message->subject),
-                "to" => $message->to,
-                "from" => $message->from,
-                "id" => (int) $mail->key()
-            );
-
-            $date = new \Zend_Date($message->date);
-            $mailData["date"] = $date->get(\Zend_Date::DATETIME_MEDIUM);
-
-            $mails[] = $mailData;
-
-            if($count >= $limit) {
-                break;
-            }
-
-            $mail->next();
-        }
-
         $this->_helper->json(array(
-            "data" => $mails,
-            "success" => true,
-            "total" => $mail->countMessages()
+            "data" => $modules
         ));
     }
-
-    public function bounceMailInboxDetailAction() {
-
-        $this->checkPermission("emails");
-
-        $mail = $this->getBounceMailbox();
-
-        $message = $mail->getMessage((int) $this->getParam("id"));
-        $message->getContent();
-
-        $this->view->mail = $mail; // we have to pass $mail too, otherwise the stream is closed
-        $this->view->message = $message;
-    }
-
 
     /**
      * page & snippet controller/action/template selector store providers
@@ -548,7 +455,7 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
     public function getAvailableControllersAction() {
 
         $controllers = array();
-        $controllerDir = PIMCORE_WEBSITE_PATH . DIRECTORY_SEPARATOR . "controllers" . DIRECTORY_SEPARATOR;
+        $controllerDir = $this->getControllerDir();
         $controllerFiles = rscandir($controllerDir);
         foreach ($controllerFiles as $file) {
             $file = str_replace($controllerDir, "", $file);
@@ -576,7 +483,8 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
             return "/" . strtoupper($matches[2]);
         }, $controllerClass);
 
-        $controllerFile = PIMCORE_WEBSITE_PATH . "/controllers/" . $controllerClass . "Controller.php";
+        $controllerDir = $this->getControllerDir();
+        $controllerFile = $controllerDir . $controllerClass . "Controller.php";
         if(is_file($controllerFile)) {
             preg_match_all("/function[ ]+([a-zA-Z0-9]+)Action/i", file_get_contents($controllerFile), $matches);
             foreach ($matches[1] as $match) {
@@ -619,23 +527,32 @@ class Admin_MiscController extends \Pimcore\Controller\Action\Admin
         exit;
     }
 
-    public function robohashAction() {
-
-        $hash = Tool\Misc::roboHash([
-            "seed" => $this->getParam("seed", rand(0,20000)),
-            "width" => $this->getParam("width"),
-            "height" => $this->getParam("height")
-        ]);
-
-        header("Content-Type: image/png");
-        echo readfile($hash);
-        exit;
-    }
-
     public function testAction()
     {
 
         die("done");
+    }
+
+    /**
+     * Determines by the moduleName GET-parameter which controller directory
+     * to use; the default (param empty or "website") or of the corresponding
+     * module or plugin
+     *
+     * @return string
+     * @throws Zend_Controller_Exception
+     */
+    private function getControllerDir() {
+        $controllerDir = PIMCORE_WEBSITE_PATH . DIRECTORY_SEPARATOR . "controllers" . DIRECTORY_SEPARATOR;
+        if ($module = $this->getParam("moduleName")) {
+            if ($module != "" && $module != "website") { // => not the default
+                $front   = $this->getFrontController();
+                $modules = $front->getControllerDirectory();
+                if (array_key_exists($module, $modules)) {
+                    $controllerDir = $modules[$module] . DIRECTORY_SEPARATOR;
+                }
+            }
+        }
+        return $controllerDir;
     }
 }
 

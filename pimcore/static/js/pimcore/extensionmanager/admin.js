@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.extensionmanager.admin");
@@ -282,17 +279,30 @@ pimcore.extensionmanager.admin = Class.create({
                 text: t("create_new_plugin_skeleton"),
                 iconCls: "pimcore_icon_plugin_add",
                 handler: function () {
-                    Ext.MessageBox.prompt(t('create_new_plugin_skeleton'), t('enter_the_name_of_the_new_plugin'),  function (button, value) {
-                        if(button == "ok") {
+                    Ext.MessageBox.prompt(t('create_new_plugin_skeleton'), t('enter_the_name_of_the_new_extension') + "(a-zA-Z0-9_)",  function (button, value) {
+                        var regresult = value.match(/[a-zA-Z0-9_]+/);
+
+                        if (button == "ok" && value.length > 2) {
                             Ext.Ajax.request({
                                 url: "/admin/extensionmanager/admin/create",
                                 params: {
                                     name: value
                                 },
-                                success: function () {
-                                    this.reload();
+                                success: function (response) {
+                                    var data = Ext.decode(response.responseText);
+                                    if(data && data.success) {
+                                        this.reload();
+                                    } else {
+                                        Ext.Msg.alert(t('create_new_plugin_skeleton'), t('invalid_plugin_name'));
+                                    }
                                 }.bind(this)
                             });
+                        }
+                        else if (button == "cancel") {
+                            return;
+                        }
+                        else {
+                            Ext.Msg.alert(t('create_new_plugin_skeleton'), t('invalid_plugin_name'));
                         }
                     }.bind(this));
                 }.bind(this)

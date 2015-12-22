@@ -2,22 +2,20 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Property
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model;
 
 use Pimcore\Model\Element\ElementInterface;
+use Pimcore\Model\Element\Service;
 
 class Property extends AbstractModel {
 
@@ -60,11 +58,6 @@ class Property extends AbstractModel {
      * @var boolean
      */
     public $inherited = false;
-
-    /**
-     * @var string
-     */
-    public $config;
 
     /**
      * Takes data from editmode and convert it to internal objects
@@ -118,22 +111,6 @@ class Property extends AbstractModel {
         else {
             // plain text
             $this->data = $data;
-        }
-        return $this;
-    }
-
-    /**
-     * get the config from an predefined property-set (eg. select)
-     *
-     * @return static
-     */
-    public function setConfigFromPredefined() {
-        if ($this->getName() && $this->getType()) {
-            $predefined = Property\Predefined::getByKey($this->getName());
-
-            if ($predefined && $predefined->getType() == $this->getType()) {
-                $this->config = $predefined->getConfig();
-            }
         }
         return $this;
     }
@@ -202,6 +179,12 @@ class Property extends AbstractModel {
      * @return static
      */
     public function setData($data) {
+
+        if($data instanceof ElementInterface) {
+            $this->setType(Service::getElementType($data));
+            $data = $data->getId();
+        }
+
         $this->data = $data;
         return $this;
     }
@@ -212,7 +195,6 @@ class Property extends AbstractModel {
      */
     public function setName($name) {
         $this->name = $name;
-        $this->setConfigFromPredefined();
         return $this;
     }
 
@@ -222,7 +204,6 @@ class Property extends AbstractModel {
      */
     public function setType($type) {
         $this->type = $type;
-        $this->setConfigFromPredefined();
         return $this;
     }
 

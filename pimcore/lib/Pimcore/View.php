@@ -2,20 +2,17 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore;
 
-use Pimcore\Model\Document;
+use Pimcore\Model;
 use Pimcore\Model\Element;
 
 class View extends \Zend_View {
@@ -34,7 +31,7 @@ class View extends \Zend_View {
      * @param $type
      * @param $realName
      * @param array $options
-     * @return Document\Tag
+     * @return Model\Document\Tag
      */
     public function tag($type, $realName, $options = array()) {
 
@@ -42,11 +39,11 @@ class View extends \Zend_View {
 
         try {
             $document = $this->document;
-            $name = Document\Tag::buildTagName($type,$realName, $document);
+            $name = Model\Document\Tag::buildTagName($type,$realName, $document);
 
-            if($document instanceof Document) {
+            if($document instanceof Model\Document) {
                 $tag = $document->getElement($name);
-                if ($tag instanceof Document\Tag && $tag->getType() == $type) {
+                if ($tag instanceof Model\Document\Tag && $tag->getType() == $type) {
 
                     // call the load() method if it exists to reinitialize the data (eg. from serializing, ...)
                     if(method_exists($tag, "load")) {
@@ -61,7 +58,7 @@ class View extends \Zend_View {
                     $tag->setOptions($options);
                 }
                 else {
-                    $tag = Document\Tag::factory($type, $name, $document->getId(), $options, $this->controller, $this, $this->editmode);
+                    $tag = Model\Document\Tag::factory($type, $name, $document->getId(), $options, $this->controller, $this, $this->editmode);
                     $document->setElement($name, $tag);
                 }
 
@@ -80,7 +77,7 @@ class View extends \Zend_View {
      * @param string $script
      */
     public function includeTemplateFile($script){
-        $showTemplatePaths = isset($_REQUEST["show_template_paths"]);
+        $showTemplatePaths = isset($_REQUEST["pimcore_show_template_paths"]);
         if($showTemplatePaths && \Pimcore::inDebugMode()){
             echo "\n<!-- start template inclusion: " . $script . " -->\n";
         }
@@ -172,7 +169,7 @@ class View extends \Zend_View {
                 });
 
                 $cacheKey = "tag_inc__" . md5(serialize($cacheParams));
-                if($content = Model\Cache::load($cacheKey)) {
+                if($content = Cache::load($cacheKey)) {
                     return $content;
                 }
             }
@@ -185,13 +182,13 @@ class View extends \Zend_View {
         $includeBak = $include;
 
         // this is if $this->inc is called eg. with $this->href() as argument
-        if(!$include instanceof Document\PageSnippet && is_object($include) && method_exists($include, "__toString")) {
+        if(!$include instanceof Model\Document\PageSnippet && is_object($include) && method_exists($include, "__toString")) {
             $include = (string) $include;
         }
 
         if (is_string($include)) {
             try {
-                $include = Document::getByPath($include);
+                $include = Model\Document::getByPath($include);
             }
             catch (\Exception $e) {
                 $include = $includeBak;
@@ -199,7 +196,7 @@ class View extends \Zend_View {
         }
         else if (is_numeric($include)) {
             try {
-                $include = Document::getById($include);
+                $include = Model\Document::getById($include);
             }
             catch (\Exception $e) {
                 $include = $includeBak;
@@ -209,7 +206,7 @@ class View extends \Zend_View {
         $params = array_merge($params, array("document" => $include));
         $content = "";
 
-        if ($include instanceof Document\PageSnippet && $include->isPublished()) {
+        if ($include instanceof Model\Document\PageSnippet && $include->isPublished()) {
             if ($include->getAction() && $include->getController()) {
                 $content = $this->action($include->getAction(), $include->getController(), $include->getModule(), $params);
             } else if ($include->getTemplate()) {
@@ -248,7 +245,7 @@ class View extends \Zend_View {
 
             // we need to add a component id to all first level html containers
             $componentId = "";
-            if($this->document instanceof Document) {
+            if($this->document instanceof Model\Document) {
                 $componentId .= 'document:' . $this->document->getId() . '.';
             }
             $componentId .= 'type:inc.name:' . $include->getId();;
@@ -259,7 +256,7 @@ class View extends \Zend_View {
 
         // write contents to the cache, if output-cache is enabled
         if($cacheConfig) {
-            Model\Cache::save($content, $cacheKey, array("output"), $cacheConfig["lifetime"]);
+            Cache::save($content, $cacheKey, array("output", "output_inline"), $cacheConfig["lifetime"]);
         }
 
         return $content;
@@ -336,39 +333,34 @@ class View extends \Zend_View {
     /**
      * @param string $method
      * @param array $arguments
-     * @return mixed|Document\Tag|string
+     * @return mixed|Model\Document\Tag|string
      * @throws \Exception
      */
     public function __call($method, $arguments) {
 
         $class = "\\Pimcore\\Model\\Document\\Tag\\" . ucfirst(strtolower($method));
-        $tagFile = "Document/Tag/" . ucfirst(strtolower($method)) . ".php";
 
-        if (File::isIncludeable($tagFile)) {
-            include_once($tagFile);
-
-            $classFound = true;
-            if(!\Pimcore\Tool::classExists($class)) {
-                $oldStyleClass = "Document_Tag_" . ucfirst(strtolower($method));
-                if(!\Pimcore\Tool::classExists($oldStyleClass)) {
-                    $classFound = false;
-                }
-            }
-
-            if ($classFound) {
-                if(!isset($arguments[0])) {
-                    throw new \Exception ("You have to set a name for the called tag (editable): " . $method);
-                }
-
-                // set default if there is no editable configuration provided
-                if(!isset($arguments[1])) {
-                    $arguments[1] = array();
-                }
-                return $this->tag($method, $arguments[0], $arguments[1]);
+        $classFound = true;
+        if(!\Pimcore\Tool::classExists($class)) {
+            $oldStyleClass = "Document_Tag_" . ucfirst(strtolower($method));
+            if(!\Pimcore\Tool::classExists($oldStyleClass)) {
+                $classFound = false;
             }
         }
 
-        if ($this->document instanceof Document) {
+        if ($classFound) {
+            if(!isset($arguments[0])) {
+                throw new \Exception ("You have to set a name for the called tag (editable): " . $method);
+            }
+
+            // set default if there is no editable configuration provided
+            if(!isset($arguments[1])) {
+                $arguments[1] = array();
+            }
+            return $this->tag($method, $arguments[0], $arguments[1]);
+        }
+
+        if ($this->document instanceof Model\Document) {
             if (method_exists($this->document, $method)) {
                 return call_user_func_array(array($this->document, $method), $arguments);
             }

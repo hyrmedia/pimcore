@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Asset
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Asset\Image;
@@ -68,6 +65,11 @@ class Thumbnail {
      * @var bool
      */
     protected static $pictureElementInUse = false;
+
+    /**
+     * @var bool
+     */
+    protected static $embedPicturePolyfill = true;
 
     /**
      * @param $asset
@@ -192,9 +194,10 @@ class Thumbnail {
     * Width and Height attribute can be overridden. SRC-attribute not.
     * Values of attributes are escaped.
     * @param array $attributes Listof key-value pairs of HTML attributes.
+    * @param array $removeAttributes Listof key-value pairs of HTML attributes that should be removed
     * @return string IMG-element with at least the attributes src, width, height, alt.
     */
-    public function getHTML($attributes = array()) {
+    public function getHTML($attributes = array(), $removeAttributes = []) {
 
         $image = $this->getAsset();
         $attr = array();
@@ -250,18 +253,24 @@ class Thumbnail {
         }
 
         foreach($attributes as $key => $value) {
+
+            // ignored attributes
+            if(in_array($key, ["disableWidthHeightAttributes"])) {
+                continue;
+            }
+
             //only include attributes with characters a-z and dashes in their name.
             if(preg_match("/^[a-z-]+$/i", $key)) {
                 $attr[$key] = $key . '="' . htmlspecialchars($value) . '"';
 
                 // do not include all attributes
-                if(!in_array($key, ["width","height"])) {
+                if(!in_array($key, ["width","height","alt"])) {
                     $pictureAttribs[$key] = $key . '="' . htmlspecialchars($value) . '"';
+                }
 
-                    // some attributes need to be added also as data- attribute, this is specific to picturePolyfill
-                    if(in_array($key, ["alt"])) {
-                        $pictureAttribs["data-" . $key] = "data-" . $key . '="' . htmlspecialchars($value) . '"';
-                    }
+                // some attributes need to be added also as data- attribute, this is specific to picturePolyfill
+                if(in_array($key, ["alt"])) {
+                    $pictureAttribs["data-" . $key] = "data-" . $key . '="' . htmlspecialchars($value) . '"';
                 }
             }
         }
@@ -283,13 +292,13 @@ class Thumbnail {
             $attr['srcset'] = 'srcset="'. implode(", ", $srcSetValues) .'"';
         }
 
+        foreach($removeAttributes as $attribute) {
+            unset($attr[$attribute]);
+            unset($pictureAttribs[$attribute]);
+        }
+
         // build html tag
         $htmlImgTag = '<img '.implode(' ', $attr).' />';
-
-        $attrCleanedForPicture = $attr;
-        unset($attrCleanedForPicture["width"]);
-        unset($attrCleanedForPicture["height"]);
-        $htmlImgTagForpicture = '<img '.implode(' ', $attrCleanedForPicture).' />';
 
         // $this->getConfig() can be empty, the original image is returned
         if(!$this->getConfig() || !$this->getConfig()->hasMedias()) {
@@ -301,13 +310,15 @@ class Thumbnail {
             // the picture polyfill script needs to be included
             self::$pictureElementInUse = true;
 
+            // mobile first => fallback image is the smallest possible image
+            $fallBackImageThumb = null;
+
             $html = '<picture ' . implode(" ", $pictureAttribs) . ' data-default-src="' . $path . '">' . "\n";
                 $mediaConfigs = $thumbConfig->getMedias();
 
                 // currently only max-width is supported, the key of the media is WIDTHw (eg. 400w) according to the srcset specification
                 ksort($mediaConfigs, SORT_NUMERIC);
-                $mediaConfigs = array_reverse($mediaConfigs, true); // the sorting matters!
-                array_unshift($mediaConfigs, $thumbConfig->getItems()); // add the default config at the beginning
+                array_push($mediaConfigs, $thumbConfig->getItems()); //add the default config at the end - picturePolyfill v4
 
                 foreach ($mediaConfigs as $mediaQuery => $config) {
                     $srcSetValues = [];
@@ -317,6 +328,10 @@ class Thumbnail {
                         $thumbConfigRes->setHighResolution($highRes);
                         $thumb = $image->getThumbnail($thumbConfigRes, true);
                         $srcSetValues[] = $thumb . " " . $highRes . "x";
+
+                        if(!$fallBackImageThumb) {
+                            $fallBackImageThumb = $thumb;
+                        }
                     }
 
                     $html .= "\t" . '<source srcset="' . implode(", ", $srcSetValues) .'"';
@@ -330,7 +345,15 @@ class Thumbnail {
                 }
 
                 //$html .= "\t" . '<noscript>' . "\n\t\t" . $htmlImgTag . "\n\t" . '</noscript>' . "\n";
+
+                $attrCleanedForPicture = $attr;
+                unset($attrCleanedForPicture["width"]);
+                unset($attrCleanedForPicture["height"]);
+                $attrCleanedForPicture["src"] = 'src="' . (string) $fallBackImageThumb . '"';
+                $htmlImgTagForpicture = '<img '.implode(' ', $attrCleanedForPicture).' />';
+
                 $html .= $htmlImgTagForpicture . "\n";
+
             $html .= '</picture>' . "\n";
 
             return $html;
@@ -448,5 +471,21 @@ class Thumbnail {
      */
     public static function setPictureElementInUse($flag) {
     	self::$pictureElementInUse = (bool) $flag;
+    }
+
+    /**
+     * @return boolean
+     */
+    public static function getEmbedPicturePolyfill()
+    {
+        return self::$embedPicturePolyfill;
+    }
+
+    /**
+     * @param boolean $embedPicturePolyfill
+     */
+    public static function setEmbedPicturePolyfill($embedPicturePolyfill)
+    {
+        self::$embedPicturePolyfill = $embedPicturePolyfill;
     }
 }

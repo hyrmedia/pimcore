@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code. dsf sdaf asdf asdf
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license dsf sdaf asdf asdf
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 use Pimcore\Tool;
@@ -35,7 +32,7 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         $overwrite = $merge ? false : true;
 
         if($admin){
-            $delta = Translation\Admin::importTranslationsFromFile($tmpFile, $overwrite);
+            $delta = Translation\Admin::importTranslationsFromFile($tmpFile, $overwrite, Tool\Admin::getLanguages());
         } else {
             $delta = Translation\Website::importTranslationsFromFile($tmpFile, $overwrite);
         }
@@ -81,9 +78,9 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         $list->setOrder("asc");
         $list->setOrderKey("key");
 
-        if ($this->getParam("filter")) {
-            $filterTerm = $list->quote("%".mb_strtolower($this->getParam("filter"))."%");
-            $list->setCondition("lower(`key`) LIKE " . $filterTerm . " OR lower(`text`) LIKE " . $filterTerm);
+        $condition = $this->getGridFilterCondition();
+        if($condition) {
+            $list->setCondition($condition);
         }
 
         $list->load();
@@ -222,7 +219,11 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
 
             if ($this->getParam("xaction") == "destroy") {
                 $data = \Zend_Json::decode($this->getParam("data"));
-                $t = $class::getByKey($data);
+                if (\Pimcore\Tool\Admin::isExtJS6()) {
+                    $t = $class::getByKey($data["key"]);
+                } else {
+                    $t = $class::getByKey($data);
+                }
                 $t->delete();
 
                 $this->_helper->json(array("success" => true, "data" => array()));
@@ -289,19 +290,22 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
             $list->setOrder("asc");
             $list->setOrderKey("key");
 
-            if($this->getParam("dir")) {
-                $list->setOrder($this->getParam("dir"));
+            $sortingSettings = \Pimcore\Admin\Helper\QueryParams::extractSortingSettings($this->getAllParams());
+            if($sortingSettings['orderKey']) {
+                $list->setOrderKey($sortingSettings['orderKey']);
             }
-            if($this->getParam("sort")) {
-                $list->setOrderKey($this->getParam("sort"));
+            if($sortingSettings['order']) {
+                $list->setOrder($sortingSettings['order']);
             }
 
             $list->setLimit($this->getParam("limit"));
             $list->setOffset($this->getParam("start"));
-            if ($this->getParam("filter")) {
-                $filterTerm = $list->quote("%".mb_strtolower($this->getParam("filter"))."%");
-                $list->setCondition("lower(`key`) LIKE " . $filterTerm . " OR lower(`text`) LIKE " . $filterTerm);
+
+            $condition = $this->getGridFilterCondition();
+            if($condition) {
+                $list->setCondition($condition);
             }
+
             $list->load();
 
             $translations = array();
@@ -315,15 +319,73 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         }
     }
 
+    protected function getGridFilterCondition() {
+
+        $db = \Pimcore\Db::get();
+        $conditionFilters = [];
+
+        $filterJson = $this->getParam("filter");
+        if ($filterJson) {
+            $isExtJs6 = \Pimcore\Tool\Admin::isExtJS6();
+            if ($isExtJs6) {
+                $propertyField = "property";
+                $operatorField = "operator";
+            } else {
+                $propertyField = "field";
+                $operatorField = "comparison";
+            }
+
+            $filters = \Zend_Json::decode($filterJson);
+            foreach ($filters as $filter) {
+
+                $operator = "=";
+                $field = null;
+                $value = null;
+
+                $fieldname = $filter[$propertyField];
+
+                if ($filter["type"] == "date" ||
+                    ($isExtJs6 && in_array($fieldname, array("modificationDate", "creationdate"))))
+                {
+                    if($filter[$operatorField] == "lt") {
+                        $operator = "<";
+                    } else if($filter[$operatorField] == "gt") {
+                        $operator = ">";
+                    } else if($filter[$operatorField] == "eq") {
+                        $operator = "=";
+                    }
+                    $filter["value"] = strtotime($filter["value"]);
+                    $field = "`" . $fieldname . "` ";
+                    $value = $filter["value"];
+                }
+
+                if($field && $value) {
+                    $conditionFilters[] =  $field . $operator . " " . $db->quote($value);
+                }
+            }
+        }
+
+        if ($this->getParam("searchString")) {
+            $filterTerm = $db->quote("%".mb_strtolower($this->getParam("searchString"))."%");
+            $conditionFilters[] = "(lower(`key`) LIKE " . $filterTerm . " OR lower(`text`) LIKE " . $filterTerm.")";
+        }
+
+        if(!empty($conditionFilters)) {
+            return implode(" AND ", $conditionFilters);
+        }
+
+        return null;
+    }
+
     public function cleanupAction() {
 
         $listClass = "\\Pimcore\\Model\\Translation\\" . ucfirst($this->getParam("type")) . "\\Listing";
-        if(class_exists($listClass)) {
+        if(Tool::classExists($listClass)) {
 
             $list = new $listClass();
             $list->cleanup();
 
-            \Pimcore\Model\Cache::clearTags(array("translator","translate"));
+            \Pimcore\Cache::clearTags(array("translator","translate"));
 
             $this->_helper->json(array("success" => true));
         }
@@ -400,8 +462,17 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
 
         $elements = array_values($elements);
 
-        // one job = 10 elements
-        $elements = array_chunk($elements, 10);
+        $elementsPerJob = 10;
+        if($type == "word") {
+            // the word export can only handle one document per request
+            // the problem is Document\Service::render(), ... in the action can be a $this->redirect() or exit;
+            // nobody knows what's happening in an action ;-) So we need to isolate them in isolated processes
+            // so that the export doesn't stop completely after a "redirect" or any other unexpected behavior of an action
+            $elementsPerJob = 1;
+        }
+
+        // one job = X elements
+        $elements = array_chunk($elements, $elementsPerJob);
         foreach($elements as $chunk) {
             $jobs[] = array(array(
                 "url" => "/admin/translation/" . $type . "-export",
@@ -431,9 +502,7 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         $exportFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/" . $id . ".xliff";
         if(!is_file($exportFile)) {
             // create initial xml file structure
-            $xliff = new \SimpleXMLElement('<xliff></xliff>');
-            $xliff->addAttribute('version', '1.2');
-            $xliff->asXML($exportFile);
+            File::put($exportFile, '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . '<xliff version="1.2"></xliff>');
         }
 
         $xliff = simplexml_load_file($exportFile, null, LIBXML_NOCDATA);
@@ -638,6 +707,9 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         $file = $xliff->file[(int)$step];
         $target = $file["target-language"];
 
+        // see https://en.wikipedia.org/wiki/IETF_language_tag
+        $target = str_replace("-","_", $target);
+
         if(!Tool::isValidLanguage($target)) {
             $locale = new \Zend_Locale($target);
             $target = $locale->getLanguage();
@@ -660,9 +732,11 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
                 if($element instanceof Document) {
                     if($fieldType == "tag" && method_exists($element, "getElement")) {
                         $tag = $element->getElement($name);
-                        $tag->setDataFromEditmode($content);
-                        $tag->setInherited(false);
-                        $element->setElement($tag->getName(), $tag);
+                        if($tag) {
+                            $tag->setDataFromEditmode($content);
+                            $tag->setInherited(false);
+                            $element->setElement($tag->getName(), $tag);
+                        }
                     }
 
                     if($fieldType == "settings" && $element instanceof Document\Page) {
@@ -690,7 +764,18 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
                 }
             }
 
-            $element->save();
+            try {
+                // allow to save objects although there are mandatory fields
+                if($element instanceof Object\AbstractObject) {
+                    $element->setOmitMandatoryCheck(true);
+                }
+
+                $element->save();
+            } catch (\Exception $e) {
+                throw new \Exception("Unable to save " . Element\Service::getElementType($element) . " with id " . $element->getId() . " because of the following reason: " . $e->getMessage());
+            }
+        } else {
+            \Logger::error("Could not resolve element " . $file["original"]);
         }
 
         $this->_helper->json(array(
@@ -715,6 +800,8 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
     protected function unescapeXliff($content) {
 
         $content = preg_replace("/<\/?(target|mrk)([^>.]+)?>/i", "", $content);
+        // we have to do this again but with html entities because of CDATA content
+        $content = preg_replace("/&lt;\/?(target|mrk)((?!&gt;).)*&gt;/i", "", $content);
 
         if(preg_match("/<\/?(bpt|ept)/", $content)) {
             $xml = str_get_html($content);
@@ -736,6 +823,8 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
         $openTags = array();
         $final = array();
 
+        $replacement = ['%_%_%lt;%_%_%','%_%_%gt;%_%_%'];
+        $content = str_replace(['&lt;','&gt;'], $replacement, $content);
         $content = html_entity_decode($content, null, "UTF-8");
 
         if(!preg_match_all("/<([^>]+)>([^<]+)?/", $content, $matches)) {
@@ -762,6 +851,7 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
                             $part = '<ept id="' . $closingTag["id"] . '"><![CDATA[' . $part . ']]></ept>';
                         }
                     } else {
+                        $part = str_replace($replacement,['<','>'], $part);
                         $part = '<![CDATA[' . $part . ']]>';
                     }
 
@@ -788,13 +878,7 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
 
         $exportFile = PIMCORE_SYSTEM_TEMP_DIRECTORY . "/" . $id . ".html";
         if(!is_file($exportFile)) {
-            /*file_put_contents($exportFile, '<!DOCTYPE html>' . "\n" . '<html>
-                <head>
-                    <style type="text/css">' . file_get_contents(PIMCORE_PATH . "/static/css/word-export.css") . '</style>
-                </head>
-                <body>
-            ');*/
-            File::put($exportFile, '<style type="text/css">' . file_get_contents(PIMCORE_PATH . "/static/css/word-export.css") . '</style>');
+            File::put($exportFile, '<style type="text/css">' . file_get_contents(PIMCORE_PATH . "/static6/css/word-export.css") . '</style>');
         }
 
         foreach ($data as $el) {
@@ -1060,7 +1144,7 @@ class Admin_TranslationController extends \Pimcore\Controller\Action\Admin {
 
         $data = json_decode($this->getParam("data"), true);
 
-        $classname = "Pimcore\\Model\\Translation\\" . ucfirst($translationType);
+        $classname = "\\Pimcore\\Model\\Translation\\" . ucfirst($translationType);
         $t = $classname::getByKey($data["key"],true);
         $t->addTranslation($data["lg"], $data["current"]);
         $t->setModificationDate(time());$t->save();

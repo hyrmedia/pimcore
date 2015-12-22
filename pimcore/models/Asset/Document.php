@@ -2,23 +2,21 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Asset
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Asset;
 
-use Pimcore\Model\Cache;
+use Pimcore\Cache;
 use Pimcore\Model;
+use Pimcore\Tool;
 
 class Document extends Model\Asset {
 
@@ -109,8 +107,14 @@ class Document extends Model\Asset {
                     \Pimcore\File::mkdir(dirname($path));
                 }
 
-                if(!is_file($path)) {
+                $lockKey = "document-thumbnail-" . $this->getId() . "-" . $page;
+
+                if(!is_file($path) && !Model\Tool\Lock::isLocked($lockKey)) {
+                    Model\Tool\Lock::lock($lockKey);
                     $converter->saveImage($path, $page);
+                    Model\Tool\Lock::release($lockKey);
+                } else if(Model\Tool\Lock::isLocked($lockKey)) {
+                    return "/pimcore/static/img/please-wait.png";
                 }
             }
 

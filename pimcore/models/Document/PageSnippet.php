@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document;
@@ -82,12 +79,12 @@ abstract class PageSnippet extends Model\Document {
 
         // update elements
         $this->getElements();
-        $this->getResource()->deleteAllElements();
+        $this->getDao()->deleteAllElements();
 
         if (is_array($this->getElements()) and count($this->getElements()) > 0) {
             foreach ($this->getElements() as $name => $element) {
                 if(!$element->getInherited()) {
-                    $element->setResource(null);
+                    $element->setDao(null);
                     $element->setDocumentId($this->getId());
                     $element->save();
                 }
@@ -108,15 +105,19 @@ abstract class PageSnippet extends Model\Document {
     }
 
     /**
-     * Save the current object as version
-     *
-     * @return void
+     * @param bool $setModificationDate
+     * @param bool $callPluginHook
+     * @param bool $force
+     * @return null|Model\Version
+     * @throws \Exception
      */
-    public function saveVersion($setModificationDate = true, $callPluginHook = true) {
+    public function saveVersion($setModificationDate = true, $callPluginHook = true, $force = false) {
 
         // hook should be also called if "save only new version" is selected
         if($callPluginHook) {
-            \Pimcore::getEventManager()->trigger("document.preUpdate", $this);
+            \Pimcore::getEventManager()->trigger("document.preUpdate", $this, [
+                "saveVersionOnly" => true
+            ]);
         }
 
         // set date
@@ -132,7 +133,7 @@ abstract class PageSnippet extends Model\Document {
 
         // only create a new version if there is at least 1 allowed
         if(Config::getSystemConfig()->documents->versions->steps
-            || Config::getSystemConfig()->documents->versions->days) {
+            || Config::getSystemConfig()->documents->versions->days || $force) {
             $version = new Model\Version();
             $version->setCid($this->getId());
             $version->setCtype("document");
@@ -144,7 +145,9 @@ abstract class PageSnippet extends Model\Document {
 
         // hook should be also called if "save only new version" is selected
         if($callPluginHook) {
-            \Pimcore::getEventManager()->trigger("document.postUpdate", $this);
+            \Pimcore::getEventManager()->trigger("document.postUpdate", $this, [
+                "saveVersionOnly" => true
+            ]);
         }
 
         return $version;
@@ -161,7 +164,7 @@ abstract class PageSnippet extends Model\Document {
         }
 
         // remove all tasks
-        $this->getResource()->deleteAllTasks();
+        $this->getDao()->deleteAllTasks();
 
         parent::delete();
     }
@@ -290,12 +293,12 @@ abstract class PageSnippet extends Model\Document {
     public function setRawElement($name, $type, $data) {
         try {
             if ($type) {
-                $class = "Document\\Tag\\" . ucfirst($type);
+                $class = "\\Pimcore\\Model\\Document\\Tag\\" . ucfirst($type);
 
                 // this is the fallback for custom document tags using prefixes
                 // so we need to check if the class exists first
                 if(!\Pimcore\Tool::classExists($class)) {
-                    $oldStyleClass = "Document_Tag_" . ucfirst($type);
+                    $oldStyleClass = "\\Document_Tag_" . ucfirst($type);
                     if(\Pimcore\Tool::classExists($oldStyleClass)) {
                         $class = $oldStyleClass;
                     }
@@ -388,6 +391,10 @@ abstract class PageSnippet extends Model\Document {
             $contentMasterDocument = null;
         }
 
+        if($contentMasterDocumentId == $this->getId()) {
+            throw new \Exception("You cannot use the current document as a master document, please choose a different one.");
+        }
+
         $this->contentMasterDocumentId = $contentMasterDocumentId;
         return $this;
     }
@@ -434,7 +441,7 @@ abstract class PageSnippet extends Model\Document {
      */
     public function getElements() {
         if ($this->elements === null) {
-            $this->setElements($this->getResource()->getElements());
+            $this->setElements($this->getDao()->getElements());
         }
         return $this->elements;
     }
@@ -453,7 +460,7 @@ abstract class PageSnippet extends Model\Document {
      */
     public function getVersions() {
         if ($this->versions === null) {
-            $this->setVersions($this->getResource()->getVersions());
+            $this->setVersions($this->getDao()->getVersions());
         }
         return $this->versions;
     }
@@ -501,12 +508,12 @@ abstract class PageSnippet extends Model\Document {
      */
     public function saveScheduledTasks() {
         $scheduled_tasks = $this->getScheduledTasks();
-        $this->getResource()->deleteAllTasks();
+        $this->getDao()->deleteAllTasks();
 
         if (is_array($scheduled_tasks) && count($scheduled_tasks) > 0) {
             foreach ($scheduled_tasks as $task) {
                 $task->setId(null);
-                $task->setResource(null);
+                $task->setDao(null);
                 $task->setCid($this->getId());
                 $task->setCtype("document");
                 $task->save();

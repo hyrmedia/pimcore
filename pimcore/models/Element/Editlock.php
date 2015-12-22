@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Element
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Element;
@@ -56,7 +53,11 @@ class Editlock extends Model\AbstractModel {
      */
     public $cpath;
 
-
+    /**
+     * @param $cid
+     * @param $ctype
+     * @return bool
+     */
     public static function isLocked($cid, $ctype) {
 
         if ($lock = self::getByElement($cid, $ctype)) {
@@ -71,11 +72,16 @@ class Editlock extends Model\AbstractModel {
         return false;
     }
 
+    /**
+     * @param $cid
+     * @param $ctype
+     * @return null|Editlock
+     */
     public static function getByElement($cid, $ctype) {
 
         try {
             $lock = new self();
-            $lock->getResource()->getByElement($cid, $ctype);
+            $lock->getDao()->getByElement($cid, $ctype);
             return $lock;
         }
         catch (\Exception $e) {
@@ -83,6 +89,26 @@ class Editlock extends Model\AbstractModel {
         }
     }
 
+    /**
+     * @param $sessionId
+     * @return bool|null
+     */
+    public static function clearSession($sessionId) {
+        try {
+            $lock = new self();
+            $lock->getDao()->clearSession($sessionId);
+            return true;
+        }
+        catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * @param $cid
+     * @param $ctype
+     * @return bool|Editlock
+     */
     public static function lock($cid, $ctype) {
 
         // try to get user
@@ -101,6 +127,11 @@ class Editlock extends Model\AbstractModel {
         return $lock;
     }
 
+    /**
+     * @param $cid
+     * @param $ctype
+     * @return bool
+     */
     public static function unlock($cid, $ctype) {
         if ($lock = self::getByElement($cid, $ctype)) {
             $lock->delete();
@@ -225,7 +256,8 @@ class Editlock extends Model\AbstractModel {
     }
 
     /**
-     * @param  $cpath
+     * @param $cpath
+     * @return $this
      */
     public function setCpath($cpath)
     {

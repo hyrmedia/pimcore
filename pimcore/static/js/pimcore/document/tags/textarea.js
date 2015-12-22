@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.document.tags.textarea");
@@ -74,7 +71,7 @@ pimcore.document.tags.textarea = Class.create(pimcore.document.tag, {
                 text = window.clipboardData.getData("Text");
             }
 
-            text = htmlentities(text, null, null, false);
+            text = htmlentities(text, 'ENT_NOQUOTES', null, false);
 
             try {
                 document.execCommand("insertHTML", false, text);
@@ -100,6 +97,14 @@ pimcore.document.tags.textarea = Class.create(pimcore.document.tag, {
                 height: options["height"] + "px"
             })
         }
+
+        if(options["class"]) {
+            this.element.addClass(options["class"]);
+        }
+
+        if (options["placeholder"]) {
+            this.element.dom.setAttribute('data-placeholder', options["placeholder"]);
+        }
     },
 
     checkValue: function () {
@@ -121,5 +126,16 @@ pimcore.document.tags.textarea = Class.create(pimcore.document.tag, {
 
     getType: function () {
         return "textarea";
+    },
+
+    setInherited: function($super, inherited, el) {
+
+        $super(inherited, el);
+
+        if(this.inherited) {
+            this.element.dom.setAttribute("contenteditable", false);
+        } else {
+            this.element.dom.setAttribute("contenteditable", true);
+        }
     }
 });

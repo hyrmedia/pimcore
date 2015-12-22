@@ -1,15 +1,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 pimcore.registerNS("pimcore.settings.bouncemailinbox");
@@ -56,7 +53,7 @@ pimcore.settings.bouncemailinbox = Class.create({
     getGrid: function () {
 
         this.store = new Ext.data.JsonStore({
-            url: '/admin/misc/bounce-mail-inbox-list',
+            url: '/admin/email/bounce-mail-inbox-list',
             restful: false,
             root: "data",
             remoteSort: true,
@@ -156,7 +153,7 @@ pimcore.settings.bouncemailinbox = Class.create({
             height: 430,
             modal: true,
             bodyStyle: "background:#fff;",
-            html: '<iframe src="/admin/misc/bounce-mail-inbox-detail?id=' + id
+            html: '<iframe src="/admin/email/bounce-mail-inbox-detail?id=' + id
                                     + '" frameborder="0" width="100%" height="390"></iframe>'
         });
         win.show();

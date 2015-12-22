@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Navigation\Page;
@@ -39,6 +36,22 @@ class Uri extends \Zend_Navigation_Page_Uri
      * @var int
      */
     protected $_documentId;
+
+    /**
+     * @var string
+     */
+    protected $documentType;
+
+    /**
+     * @var string
+     */
+    protected $realFullPath;
+
+    /**
+     * @var array
+     */
+    protected $customSettings = [];
+
 
     /**
      * @param  $tabindex
@@ -102,8 +115,12 @@ class Uri extends \Zend_Navigation_Page_Uri
     {
         if($document instanceof Document\Hardlink\Wrapper\WrapperInterface) {
             $this->setDocumentId($document->getHardlinkSource()->getId());
+            $this->setDocumentType($document->getHardlinkSource()->getType());
+            $this->setRealFullPath($document->getHardlinkSource()->getRealFullPath());
         } else if($document instanceof Document) {
             $this->setDocumentId($document->getId());
+            $this->setDocumentType($document->getType());
+            $this->setRealFullPath($document->getRealFullPath());
         }
         return $this;
     }
@@ -139,5 +156,59 @@ class Uri extends \Zend_Navigation_Page_Uri
     public function setDocumentId($documentId)
     {
         $this->_documentId = $documentId;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getDocumentType()
+    {
+        return $this->documentType;
+    }
+
+    /**
+     * @param mixed $documentType
+     */
+    public function setDocumentType($documentType)
+    {
+        $this->documentType = $documentType;
+    }
+
+    /**
+     * @return string
+     */
+    public function getRealFullPath()
+    {
+        return $this->realFullPath;
+    }
+
+    /**
+     * @param string $realFullPath
+     */
+    public function setRealFullPath($realFullPath)
+    {
+        $this->realFullPath = $realFullPath;
+    }
+
+    /**
+     * @param $name
+     * @param $value
+     * @return $this
+     */
+    public function setCustomSetting($name, $value) {
+        $this->customSettings[$name] = $value;
+        return $this;
+    }
+
+    /**
+     * @param $name
+     * @return null
+     */
+    public function getCustomSetting($name) {
+        if(array_key_exists($name, $this->customSettings)) {
+            return $this->customSettings[$name];
+        }
+
+        return null;
     }
 }

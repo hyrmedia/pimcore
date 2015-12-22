@@ -2,22 +2,19 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Controller\Router\Route;
 
 use Pimcore\Tool;
 use Pimcore\Config; 
-use Pimcore\Model\Cache;
+use Pimcore\Cache;
 use Pimcore\Model\Document;
 use Pimcore\Model\Site;
 use Pimcore\Model\Redirect;
@@ -84,6 +81,9 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
      */
     public function match($path, $partial = false) {
 
+        // this allows the usage of UTF8 URLs and within static routes
+        $path = urldecode($path); 
+
         $front = \Zend_Controller_Front::getInstance();
         $matchFound = false;
         $config = Config::getSystemConfig();
@@ -103,7 +103,7 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
             if($username && $password) {
                 $adapter = new \Zend_Auth_Adapter_Http(array(
                     "accept_schemes" => "basic",
-                    "realm" => $_SERVER["HTTP_HOST"]
+                    "realm" => Tool::getHostname()
                 ));
 
                 $basicResolver = new \Pimcore\Helper\Auth\Adapter\Http\ResolverStatic($username, $password);
@@ -128,13 +128,6 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
                 $domain = Tool::getHostname();
                 $site = \Zend_Registry::isRegistered("pimcore_site") ? \Zend_Registry::get("pimcore_site") : Site::getByDomain($domain);
                 $path = $site->getRootPath() . $path;
-
-                if($site->getRedirectToMainDomain() && $domain != $site->getMainDomain()) {
-                    $url = ($front->getRequest()->isSecure() ? "https" : "http") . "://" . $site->getMainDomain() . $_SERVER["REQUEST_URI"];
-                    header("HTTP/1.1 301 Moved Permanently");
-                    header("Location: " . $url, true, 301);
-                    exit;
-                }
 
                 \Zend_Registry::set("pimcore_site", $site);
             }
@@ -170,14 +163,14 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
                 }
             }
 
-            if($hostRedirect) {
+            if($hostRedirect && !isset($_GET["pimcore_disable_host_redirect"])) {
                 $url = ($front->getRequest()->isSecure() ? "https" : "http") . "://" . $hostRedirect . $_SERVER["REQUEST_URI"];
 
                 header("HTTP/1.1 301 Moved Permanently");
                 header("Location: " . $url, true, 301);
 
                 // log all redirects to the redirect log
-                \Pimcore\Log\Simple::log("redirect", Tool::getAnonymizedClientIp() . " \t Source: " . $_SERVER["REQUEST_URI"] . " -> " . $url);
+                \Pimcore\Log\Simple::log("redirect", Tool::getAnonymizedClientIp() . " \t Host-Redirect Source: " . $_SERVER["REQUEST_URI"] . " -> " . $url);
                 exit;
             }
         } catch (\Exception $e) {
@@ -487,7 +480,7 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
                 $list->setOrderKey("priority");
                 $this->redirects = $list->load();
 
-                Cache::save($this->redirects, $cacheKey, array("system","redirect","route","output"), null, 998);
+                Cache::save($this->redirects, $cacheKey, array("system","redirect","route"), null, 998);
             }
 
             $requestScheme = ($_SERVER['HTTPS'] == 'on') ? \Zend_Controller_Request_Http::SCHEME_HTTPS : \Zend_Controller_Request_Http::SCHEME_HTTP;
@@ -506,8 +499,8 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
                     if (@preg_match($redirect->getSource(), $matchAgainst, $matches)) {
 
                         // check for a site
-                        if($redirect->getSourceSite()) {
-                            if(!$sourceSite || $sourceSite->getId() != $redirect->getSourceSite()) {
+                        if($sourceSite) {
+                            if($sourceSite->getId() != $redirect->getSourceSite()) {
                                 continue;
                             }
                         }
@@ -566,7 +559,7 @@ class Frontend extends \Zend_Controller_Router_Route_Abstract {
                         header("Location: " . $url, true, $redirect->getStatusCode());
 
                         // log all redirects to the redirect log
-                        \Pimcore\Log\Simple::log("redirect", Tool::getAnonymizedClientIp() . " \t Source: " . $_SERVER["REQUEST_URI"] . " -> " . $url);
+                        \Pimcore\Log\Simple::log("redirect", Tool::getAnonymizedClientIp() . " \t Custom-Redirect ID: " . $redirect->getId() . " , Source: " . $_SERVER["REQUEST_URI"] . " -> " . $url);
                         exit;
                     }
                 }

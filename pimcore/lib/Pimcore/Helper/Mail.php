@@ -2,15 +2,12 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Helper;
@@ -18,6 +15,7 @@ namespace Pimcore\Helper;
 use Pimcore\Mail as MailClient;
 use Pimcore\Tool;
 use Pimcore\Model;
+use TijsVerkoyen\CssToInlineStyles\CssToInlineStyles;
 
 class Mail
 {
@@ -207,7 +205,7 @@ CSS;
         }
 
         //matches all links
-        preg_match_all("@(href|src)\s*=[\"']([^(http|mailto|javascript)].*?(css|jpe?g|gif|png)?)[\"']@is", $string, $matches);
+        preg_match_all("@(href|src)\s*=[\"']([^(http|mailto|javascript|data:|#)].*?(css|jpe?g|gif|png)?)[\"']@is", $string, $matches);
         if (!empty($matches[0])) {
             foreach ($matches[0] as $key => $value) {
                 $fullMatch = $matches[0][$key];
@@ -243,10 +241,12 @@ CSS;
             throw new \Exception('$document has to be an instance of Document');
         }
 
-
         //matches all <link> Tags
         preg_match_all("@<link.*?href\s*=\s*[\"']([^http].*?)[\"'].*?(/?>|</\s*link>)@is", $string, $matches);
         if (!empty($matches[0])) {
+
+            $css = "";
+
             foreach ($matches[0] as $key => $value) {
                 $fullMatch = $matches[0][$key];
                 $path = $matches[1][$key];
@@ -262,11 +262,24 @@ CSS;
                         }
                         if ($fileContent) {
                             $fileContent = self::normalizeCssContent($fileContent, $fileInfo);
-                            $string = str_replace($fullMatch, '<style type="text/css">' . $fileContent . '</style>', $string);
+
+                            $css .= "\n\n\n";
+                            $css .= $fileContent;
+
+                            // remove <link> tag
+                            $string = str_replace($fullMatch, '', $string);
                         }
                     }
                 }
             }
+
+            $autoloader = \Zend_Loader_Autoloader::getInstance();
+            $autoloader->registerNamespace('TijsVerkoyen');
+
+            $cssToInlineStyles = new CssToInlineStyles();
+            $cssToInlineStyles->setHTML($string);
+            $cssToInlineStyles->setCSS($css);
+            $string = $cssToInlineStyles->convert();
         }
 
         return $string;

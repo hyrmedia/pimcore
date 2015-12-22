@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document;
@@ -52,6 +49,12 @@ class Service extends Model\Element\Service {
      */
     public static function render(Document $document, $params = array(), $useLayout = false)
     {
+        $layout = null;
+        $existingActionHelper = null;
+
+        if(\Zend_Controller_Action_HelperBroker::hasHelper("layout")) {
+            $existingActionHelper = \Zend_Controller_Action_HelperBroker::getExistingHelper("layout");
+        }
         $layoutInCurrentAction = (\Zend_Layout::getMvcInstance() instanceof \Zend_Layout) ? \Zend_Layout::getMvcInstance()->getLayout() : false;
         
         $viewHelper = \Zend_Controller_Action_HelperBroker::getExistingHelper("ViewRenderer");
@@ -127,6 +130,18 @@ class Service extends Model\Element\Service {
                     $layout->setViewSuffix(View::getViewScriptSuffix()); // set pimcore specifiy view suffix
                     $layout->setLayout($layoutInCurrentAction);
                     $view->getHelper("Layout")->setLayout($layout);
+
+                    if($existingActionHelper) {
+                        \Zend_Controller_Action_HelperBroker::removeHelper("layout");
+                        \Zend_Controller_Action_HelperBroker::addHelper($existingActionHelper);
+
+                        $pluginClass = $layout->getPluginClass();
+                        $front = $existingActionHelper->getFrontController();
+                        if ($front->hasPlugin($pluginClass)) {
+                            $plugin = $front->getPlugin($pluginClass);
+                            $plugin->setLayoutActionHelper($existingActionHelper);
+                        }
+                    }
                 }
                 $layout->{$layout->getContentKey()} = null; //reset content
 
@@ -203,7 +218,7 @@ class Service extends Model\Element\Service {
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user->getId());
         $new->setUserModification($this->_user->getId());
-        $new->setResource(null);
+        $new->setDao(null);
         $new->setLocked(false);
         $new->setCreationDate(time());
         if(method_exists($new, "setPrettyUrl")) {
@@ -244,7 +259,7 @@ class Service extends Model\Element\Service {
         $new->setParentId($target->getId());
         $new->setUserOwner($this->_user->getId());
         $new->setUserModification($this->_user->getId());
-        $new->setResource(null);
+        $new->setDao(null);
         $new->setLocked(false);
         $new->setCreationDate(time());
         if(method_exists($new, "setPrettyUrl")) {
@@ -364,7 +379,7 @@ class Service extends Model\Element\Service {
             $document = new Document();
             // validate path
             if (\Pimcore\Tool::isValidPath($path)) {
-                $document->getResource()->getByPath($path);
+                $document->getDao()->getByPath($path);
                 return true;
             }
         }

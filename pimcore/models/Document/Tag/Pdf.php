@@ -2,17 +2,14 @@
 /**
  * Pimcore
  *
- * LICENSE
- *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
  * @category   Pimcore
  * @package    Document
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\Model\Document\Tag;
@@ -130,11 +127,15 @@ class Pdf extends Model\Document\Tag
             $pages = $asset->getPageCount();
         }
 
+        $texts = $this->texts;
+        // force an object when converting to JSON
+        $texts["__dummy"] = "__dummy";
+
         return array(
             "id" => $this->id,
             "pageCount" => $pages,
             "hotspots" => empty($hotspots) ? null : $hotspots,
-            "texts" => $this->texts,
+            "texts" => $texts,
             "chapters" => $this->chapters
         );
     }
@@ -311,7 +312,6 @@ class Pdf extends Model\Document\Tag
      */
     public function setDataFromEditmode($data)
     {
-//        var_dump($data); Exit;
         $pdf = Asset::getById($data["id"]);
         if($pdf instanceof Asset\Document) {
             $this->id = $pdf->getId();
@@ -385,20 +385,38 @@ class Pdf extends Model\Document\Tag
 
         $options = $this->getOptions();
 
-
         if ($asset instanceof Asset\Document && $asset->getPageCount()) {
             $pageCount = $asset->getPageCount();
             $hotspots = $this->getHotspots();
-            $rewritePath = function ($data) {
+            $rewritePath = function ($data) use ($options) {
 
                 if(!is_array($data)) {
                     return array();
                 }
 
                 foreach ($data as &$element) {
+
+                    if(isset($options["hotspotCallback"]) && is_callable($options["hotspotCallback"])) {
+                        $element = $options["hotspotCallback"]($element);
+                        if(!is_array($element)) {
+                            throw new \Exception("Return value must be the the array passed as parameter (can be modified)");
+                        }
+
+                        if(isset($element["attributes"]) && is_array($element["attributes"])) {
+                            $attributes = $element["attributes"];
+                            $element["attributes"] = [];
+                            foreach($attributes as $name => $value) {
+                                $element["attributes"][] = [
+                                    "name" => $name,
+                                    "value" => $value
+                                ];
+                            }
+                        }
+                    }
+
                     if(array_key_exists("data",$element) && is_array($element["data"]) && count($element["data"]) > 0) {
                         foreach($element["data"] as &$metaData) {
-                            if($metaData["value"] instanceof Document) {
+                            if($metaData["value"] instanceof Element\ElementInterface) {
                                 $metaData["value"] = $metaData["value"]->getFullPath();
                             }
                         }

@@ -3,20 +3,20 @@
 /**
  * Pimcore
  *
- * LICENSE
+ * This source file is subject to the GNU General Public License version 3 (GPLv3)
+ * For the full copyright and license information, please view the LICENSE.md and gpl-3.0.txt
+ * files that are distributed with this source code.
  *
- * This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.txt.
- * It is also available through the world-wide-web at this URL:
- * http://www.pimcore.org/license
- *
- * @copyright  Copyright (c) 2009-2014 pimcore GmbH (http://www.pimcore.org)
- * @license    http://www.pimcore.org/license     New BSD License
+ * @copyright  Copyright (c) 2009-2015 pimcore GmbH (http://www.pimcore.org)
+ * @license    http://www.pimcore.org/license     GNU General Public License version 3 (GPLv3)
  */
 
 namespace Pimcore\View\Helper;
 
 use Pimcore\Model\Document;
+use Pimcore\Cache as CacheManager;
+use Pimcore\Model\Site;
+use Pimcore\Navigation\Page\Uri;
 
 class PimcoreNavigation extends \Zend_View_Helper_Navigation
 {
@@ -38,19 +38,37 @@ class PimcoreNavigation extends \Zend_View_Helper_Navigation
     }
 
     /**
-     * @return PimcoreNavigationController
+     * @param null $activeDocument
+     * @param null $navigationRootDocument
+     * @param null $htmlMenuIdPrefix
+     * @param callable $pageCallback
+     * @return $this|PimcoreNavigationController
+     * @throws \Zend_View_Exception+
      */
-    public function pimcoreNavigation($activeDocument = null, $navigationRootDocument = null, $htmlMenuIdPrefix = null)
+    public function pimcoreNavigation($activeDocument = null, $navigationRootDocument = null, $htmlMenuIdPrefix = null, $pageCallback = null, $cache = true)
     {
 
         $controller = self::getController();
 
         if($activeDocument) {
             // this is the new more convenient way of creating a navigation
-            $navContainer = $controller->getNavigation($activeDocument, $navigationRootDocument, $htmlMenuIdPrefix);
+            $navContainer = $controller->getNavigation($activeDocument, $navigationRootDocument, $htmlMenuIdPrefix, $pageCallback, $cache);
             $this->navigation($navContainer);
             $this->setUseTranslator(false);
             $this->setInjectTranslator(false);
+
+            // now we need to refresh the container in all helpers, since the container can change from call to call
+            // see also https://www.pimcore.org/issues/browse/PIMCORE-2636 which describes this problem in detail
+            foreach($this->_helpers as $helper) {
+                $helper->setContainer($this->getContainer());
+            }
+
+            // just to be sure, ... load the menu helper and set the container
+            $menu = $this->findHelper("menu");
+            if($menu) {
+                $menu->setContainer($this->getContainer());
+            }
+
             return $this;
         } else {
             // this is the old-style navigation
@@ -79,16 +97,6 @@ class PimcoreNavigation extends \Zend_View_Helper_Navigation
 class PimcoreNavigationController
 {
     /**
-     * @var Document
-     */
-    protected $_activeDocument;
-
-    /**
-     * @var
-     */
-    protected $_navigationContainer;
-
-    /**
      * @var string
      */
     protected $_htmlMenuIdPrefix;
@@ -98,22 +106,142 @@ class PimcoreNavigationController
      */
     protected $_pageClass = '\\Pimcore\\Navigation\\Page\\Uri';
 
-    public function getNavigation($activeDocument, $navigationRootDocument = null, $htmlMenuIdPrefix = null)
+    /**
+     * @param $activeDocument
+     * @param null $navigationRootDocument
+     * @param null $htmlMenuIdPrefix
+     * @param null $pageCallback
+     * @param bool|string $cache
+     * @return mixed|\Zend_Navigation
+     * @throws \Exception
+     * @throws \Zend_Navigation_Exception
+     */
+    public function getNavigation($activeDocument, $navigationRootDocument = null, $htmlMenuIdPrefix = null, $pageCallback = null, $cache = true)
     {
-
-        $this->_activeDocument = $activeDocument;
+        $cacheEnabled = (bool) $cache;
         $this->_htmlMenuIdPrefix = $htmlMenuIdPrefix;
-
-        $this->_navigationContainer = new \Zend_Navigation();
 
         if (!$navigationRootDocument) {
             $navigationRootDocument = Document::getById(1);
         }
 
-        if ($navigationRootDocument->hasChilds()) {
-            $this->buildNextLevel($navigationRootDocument, null, true);
+        $cacheKeys = [];
+
+        if(Site::isSiteRequest()) {
+            $site = Site::getCurrentSite();
+            $cacheKeys[] = "site__" . $site->getId();
         }
-        return $this->_navigationContainer;
+
+
+        $cacheKeys[] = "root_id__" . $navigationRootDocument->getId();
+        if(is_string($cache)) {
+            $cacheKeys[] = "custom__" . $cache;
+        }
+
+        if($pageCallback instanceof \Closure) {
+            $cacheKeys[] = "pageCallback_" . closureHash($pageCallback);
+        }
+
+        $cacheKey = "nav_" . md5(serialize($cacheKeys));
+        $navigation = CacheManager::load($cacheKey);
+
+        if(!$navigation || !$cacheEnabled) {
+            $navigation = new \Zend_Navigation();
+
+            if ($navigationRootDocument->hasChilds()) {
+                $rootPage = $this->buildNextLevel($navigationRootDocument, true, $pageCallback);
+                $navigation->addPages($rootPage);
+            }
+
+            // we need to force caching here, otherwise the active classes and other settings will be set and later
+            // also written into cache (pass-by-reference) ... when serializing the data directly here, we don't have this problem
+            if($cacheEnabled) {
+                CacheManager::save($navigation, $cacheKey, ["output","navigation"], null, 999, true);
+            }
+        }
+
+        // set active path
+        $front = \Zend_Controller_Front::getInstance();
+        $request = $front->getRequest();
+
+        // try to find a page matching exactly the request uri
+        $activePage = $navigation->findOneBy("uri", $request->getRequestUri());
+
+        if(!$activePage) {
+            // try to find a page matching the path info
+            $activePage = $navigation->findOneBy("uri", $request->getPathInfo());
+        }
+
+        if(!$activePage) {
+            // use the provided pimcore document
+            $activePage = $navigation->findOneBy("realFullPath", $activeDocument->getRealFullPath());
+        }
+
+        if(!$activePage) {
+            // find by link target
+            $activePage = $navigation->findOneBy("uri", $activeDocument->getFullPath());
+        }
+
+        if($activePage) {
+            // we found an active document, so we can build the active trail by getting respectively the parent
+            $this->addActiveCssClasses($activePage, true);
+        } else {
+            // we don't have an active document, so we try to build the trail on our own
+            $allPages = $navigation->findAllBy("uri", "/.*/", true);
+
+            foreach($allPages as $page) {
+                $activeTrail = false;
+
+                if (strpos($activeDocument->getRealFullPath(), $page->getUri() . "/") === 0) {
+                    $activeTrail = true;
+                }
+
+                if($page instanceof Uri) {
+                    if ($page->getDocumentType() == "link") {
+                        if (strpos($activeDocument->getFullPath(), $page->getUri() . "/") === 0) {
+                            $activeTrail = true;
+                        }
+                    }
+                }
+
+                if($activeTrail) {
+                    $page->setActive(true);
+                    $page->setClass($page->getClass() . " active active-trail");
+                }
+            }
+        }
+
+        return $navigation;
+    }
+
+    /**
+     * @param \Pimcore\Navigation\Page\Uri $page
+     */
+    protected function addActiveCssClasses($page, $isActive = false) {
+        $page->setActive(true);
+
+        $parent = $page->getParent();
+        $isRoot = false;
+        $classes = "";
+
+        if($parent instanceof \Pimcore\Navigation\Page\Uri) {
+            $this->addActiveCssClasses($parent);
+        } else {
+            $isRoot = true;
+        }
+
+        $classes .= " active";
+
+        if(!$isActive) {
+            $classes .= " active-trail";
+        }
+
+        if ($isRoot && $isActive) {
+            $classes .= " mainactive";
+        }
+
+
+        $page->setClass($page->getClass() . $classes);
     }
 
     /**
@@ -128,7 +256,7 @@ class PimcoreNavigationController
 
     /**
      * Returns the name of the pageclass
-     * 
+     *
      * @return String
      */
     public function getPageClass()
@@ -147,11 +275,11 @@ class PimcoreNavigationController
 
     /**
      * @param $parentDocument
-     * @param null $parentPage
      * @param bool $isRoot
+     * @param callable $pageCallback
      * @return array
      */
-    protected function buildNextLevel($parentDocument, $parentPage = null, $isRoot = false)
+    protected function buildNextLevel($parentDocument, $isRoot = false, $pageCallback = null)
     {
         $pages = array();
 
@@ -166,35 +294,15 @@ class PimcoreNavigationController
 
                 if (($child instanceof Document\Page or $child instanceof Document\Link) and $child->getProperty("navigation_name")) {
 
-                    $active = false;
-
-                    if ($this->_activeDocument->getRealFullPath() == $child->getRealFullPath()) {
-                        $active = true;
-                    } else if (strpos($this->_activeDocument->getRealFullPath(), $child->getRealFullPath() . "/") === 0) {
-                      $classes .= " active active-trail";
-                    }
-
-                    // if the child is a link, check if the target is the same as the active document
-                    // if so, mark it as active
-                    if($child instanceof Document\Link) {
-                        if ($this->_activeDocument->getRealFullPath() == $child->getHref()) {
-                            $active = true;
-                        }
-
-                        if (strpos($this->_activeDocument->getRealFullPath(), $child->getHref() . "/") === 0) {
-                            $classes .= " active active-trail";
-                        }
-                    }
-
                     $path = $child->getFullPath();
                     if ($child instanceof Document\Link) {
                         $path = $child->getHref();
                     }
-                    
+
                     $page = new $this->_pageClass();
                     $page->setUri($path . $child->getProperty("navigation_parameters") . $child->getProperty("navigation_anchor"));
                     $page->setLabel($child->getProperty("navigation_name"));
-                    $page->setActive($active);
+                    $page->setActive(false);
                     $page->setId($this->_htmlMenuIdPrefix . $child->getId());
                     $page->setClass($child->getProperty("navigation_class"));
                     $page->setTarget($child->getProperty("navigation_target"));
@@ -208,29 +316,26 @@ class PimcoreNavigationController
                         $page->setVisible(false);
                     }
 
-                    if ($active and !$isRoot) {
-                        $classes .= " active";
-                    } else if ($active and $isRoot) {
-                        $classes .= " main mainactive active";
-                    } else if ($isRoot) {
-                       $classes .= " main";
+                    if ($isRoot) {
+                        $classes .= " main";
                     }
+
                     $page->setClass($page->getClass() . $classes);
 
                     if ($child->hasChilds()) {
-                        $childPages = $this->buildNextLevel($child, $page, false);
+                        $childPages = $this->buildNextLevel($child, false, $pageCallback);
                         $page->setPages($childPages);
                     }
 
-                    $pages[] = $page;
-
-                    if ($isRoot) {
-                        $this->_navigationContainer->addPage($page);
+                    if($pageCallback instanceof \Closure) {
+                        $pageCallback($page, $child);
                     }
+
+                    $pages[] = $page;
                 }
             }
         }
-        
+
         return $pages;
     }
 
